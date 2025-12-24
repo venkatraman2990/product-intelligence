@@ -24,35 +24,55 @@ const api = axios.create({
 // Contract endpoints
 export const contractsApi = {
   upload: async (file: File): Promise<UploadResponse> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const response = await fetch('/api/contracts/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin',
-      });
+    console.log('[Upload] Starting upload for file:', file.name, 'size:', file.size);
+    
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('file', file);
       
-      const data = await response.json();
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/contracts/upload', true);
       
-      if (response.status === 409) {
-        return {
-          ...data,
-          is_duplicate: true,
-        };
-      }
+      xhr.onload = function() {
+        console.log('[Upload] Response received, status:', xhr.status);
+        try {
+          const data = JSON.parse(xhr.responseText);
+          console.log('[Upload] Response data:', data);
+          
+          if (xhr.status === 409) {
+            resolve({ ...data, is_duplicate: true });
+          } else if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(data);
+          } else {
+            reject(new Error(data.detail || `Upload failed with status ${xhr.status}`));
+          }
+        } catch (e) {
+          console.error('[Upload] Failed to parse response:', xhr.responseText);
+          reject(new Error('Failed to parse server response'));
+        }
+      };
       
-      if (!response.ok) {
-        throw new Error(data.detail || `Upload failed with status ${response.status}`);
-      }
+      xhr.onerror = function() {
+        console.error('[Upload] XHR error occurred');
+        reject(new Error('Unable to connect to the server. Please check your connection and try again.'));
+      };
       
-      return data;
-    } catch (error: unknown) {
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        throw new Error('Unable to connect to the server. Please check your connection and try again.');
-      }
-      throw error;
-    }
+      xhr.ontimeout = function() {
+        console.error('[Upload] Request timed out');
+        reject(new Error('Upload timed out. Please try again.'));
+      };
+      
+      xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          console.log('[Upload] Progress:', percent + '%');
+        }
+      };
+      
+      xhr.timeout = 120000;
+      console.log('[Upload] Sending request...');
+      xhr.send(formData);
+    });
   },
 
   list: async (skip = 0, limit = 20): Promise<ContractListResponse> => {
