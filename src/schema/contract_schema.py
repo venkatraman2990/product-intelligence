@@ -224,6 +224,10 @@ class ContractData(BaseModel):
         default_factory=list,
         description="Notes or warnings from extraction"
     )
+    citations: dict[str, str] = Field(
+        default_factory=dict,
+        description="Source text citations for each extracted field"
+    )
 
     def to_flat_dict(self) -> dict:
         """Flatten nested structure for Excel export (single row)."""
@@ -336,6 +340,9 @@ class ContractData(BaseModel):
             "; ".join(self.extraction_notes)
             if self.extraction_notes else None
         )
+
+        # Citations (store as separate dict for frontend access)
+        flat["_citations"] = self.citations
 
         return flat
 

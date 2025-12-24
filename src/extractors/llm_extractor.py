@@ -314,6 +314,11 @@ class LLMExtractor(BaseExtractor):
             cancellation_provisions=self._safe_string(policy_data.get("cancellation_provisions") or extraction.get("cancellation_provisions")),
         )
 
+        # Extract citations from response
+        citations = extraction.get("citations", {})
+        if not isinstance(citations, dict):
+            citations = {}
+
         return ContractData(
             metadata=metadata,
             territory=territory,
@@ -324,6 +329,7 @@ class LLMExtractor(BaseExtractor):
             restrictions=restrictions,
             policy_terms=policy_terms,
             extraction_notes=notes,
+            citations=citations,
         )
 
     def _parse_date(self, value) -> datetime | None:

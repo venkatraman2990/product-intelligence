@@ -36,13 +36,25 @@ For state lists, use standard 2-letter state abbreviations (e.g., CA, TX, FL).
 
 Return the extracted data as valid JSON matching the provided schema."""
 
-EXTRACTION_USER_PROMPT = """Please extract the following structured data from this insurance underwriting guidelines document:
+EXTRACTION_USER_PROMPT = """Please extract the following structured data from this insurance underwriting guidelines document.
+
+IMPORTANT: For each field you extract, you MUST also provide the exact source text from the document where you found this information. This is critical for audit and verification purposes.
 
 ## Document Content:
 {document_text}
 
 ## Required Fields:
-Extract the following information and return as JSON:
+Extract the following information and return as JSON. For EACH field, provide both the extracted value AND the source citation.
+
+The JSON format should be:
+{{
+  "field_name": <extracted value>,
+  "citations": {{
+    "field_name": "exact text snippet from document where this value was found"
+  }}
+}}
+
+### Fields to Extract:
 
 1. **Metadata**:
    - member_name: Name of the member/MGA/company (look for company name in header or title)
@@ -99,7 +111,8 @@ Extract the following information and return as JSON:
    - max_policy_period: Maximum policy period
    - cancellation_provisions: Policy cancellation provisions
 
-Return ONLY valid JSON with these fields. Use null for fields not found in the document. For lists, return empty array [] if no items found."""
+Return ONLY valid JSON. Use null for fields not found in the document. For lists, return empty array [] if no items found.
+The "citations" object should contain the exact text snippets from the document for each extracted field. Keep citations concise (under 200 characters) but include enough context to locate the source."""
 
 # Snowflake settings (Phase 2)
 SNOWFLAKE_ACCOUNT = os.getenv("SNOWFLAKE_ACCOUNT")
