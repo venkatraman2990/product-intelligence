@@ -15,6 +15,7 @@ const API_BASE_URL = '';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 120000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -28,16 +29,29 @@ export const contractsApi = {
     try {
       const response = await api.post('/api/contracts/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
       });
       return response.data;
     } catch (error: unknown) {
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number; data?: UploadResponse } };
+        const axiosError = error as { response?: { status?: number; data?: UploadResponse & { detail?: string } } };
         if (axiosError.response?.status === 409 && axiosError.response?.data) {
           return {
             ...axiosError.response.data,
             is_duplicate: true,
           };
+        }
+        if (axiosError.response?.data?.detail) {
+          throw new Error(axiosError.response.data.detail);
+        }
+      }
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errMsg = (error as { message: string }).message;
+        if (errMsg.includes('Network Error')) {
+          throw new Error('Unable to connect to the server. Please check your connection and try again.');
+        }
+        if (errMsg.includes('timeout')) {
+          throw new Error('Upload timed out. Please try again with a smaller file.');
         }
       }
       throw error;
