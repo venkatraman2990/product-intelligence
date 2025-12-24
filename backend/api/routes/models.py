@@ -114,7 +114,7 @@ async def list_available_models(
     ]
 
 
-@router.get("/picker", response_model=ModelPickerResponse)
+@router.get("/picker")
 async def get_model_picker_data(
     db: Session = Depends(get_db)
 ):
@@ -126,35 +126,38 @@ async def get_model_picker_data(
         ExtractionModel.is_active == True
     ).order_by(ExtractionModel.sort_order).all()
 
-    # Group by provider
-    providers_dict = {}
+    # Group by provider - return format expected by frontend
+    models_by_provider = {
+        "anthropic": [],
+        "openai": [],
+        "landing_ai": [],
+    }
+    
+    configured_providers = []
+    
     for m in models:
-        if m.provider not in providers_dict:
-            providers_dict[m.provider] = []
-        providers_dict[m.provider].append(ExtractionModelResponse(
-            id=m.id,
-            provider=m.provider,
-            model_name=m.model_name,
-            display_name=m.display_name,
-            description=m.description,
-            is_active=m.is_active,
-            sort_order=m.sort_order,
-        ))
+        is_configured = check_provider_configured(m.provider)
+        # First model per provider is the default for that provider
+        is_first_for_provider = m.provider in models_by_provider and len(models_by_provider[m.provider]) == 0
+        model_data = {
+            "provider": m.provider,
+            "model_name": m.model_name,
+            "display_name": m.display_name,
+            "description": m.description or "",
+            "is_configured": is_configured,
+            "is_default": is_first_for_provider,
+        }
+        if m.provider in models_by_provider:
+            models_by_provider[m.provider].append(model_data)
+        
+        # Track configured providers
+        if is_configured and m.provider not in configured_providers:
+            configured_providers.append(m.provider)
 
-    # Build provider info list
-    providers = []
-    for provider_id, provider_models in providers_dict.items():
-        providers.append(ProviderInfo(
-            id=provider_id,
-            display_name=PROVIDER_DISPLAY_NAMES.get(provider_id, provider_id),
-            is_configured=check_provider_configured(provider_id),
-            models=provider_models,
-        ))
-
-    # Sort by first model's sort_order
-    providers.sort(key=lambda p: p.models[0].sort_order if p.models else 999)
-
-    return ModelPickerResponse(providers=providers)
+    return {
+        "models": models_by_provider,
+        "configured_providers": configured_providers,
+    }
 
 
 @router.get("/providers")
