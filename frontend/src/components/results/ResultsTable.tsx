@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Code, Table, Copy, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, Code, Table, Copy, Check, Quote } from 'lucide-react';
+import DocumentPreview from './DocumentPreview';
 
 interface ResultsTableProps {
   data: Record<string, unknown>;
   notes?: string[];
+  documentText?: string;
 }
 
 const fieldCategories: Record<string, string[]> = {
@@ -37,12 +39,20 @@ const fieldCategories: Record<string, string[]> = {
   ],
 };
 
-export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
+export default function ResultsTable({ data, notes = [], documentText = '' }: ResultsTableProps) {
   const [viewMode, setViewMode] = useState<'table' | 'json'>('table');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(['Metadata', 'Territory', 'Coverage'])
   );
   const [copied, setCopied] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewField, setPreviewField] = useState<string>('');
+  const [previewCitation, setPreviewCitation] = useState<string>('');
+
+  const citations = (data._citations as Record<string, string>) || {};
+  
+  const displayData = { ...data };
+  delete displayData._citations;
 
   const toggleCategory = (category: string) => {
     setExpandedCategories((prev) => {
@@ -57,9 +67,18 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    navigator.clipboard.writeText(JSON.stringify(displayData, null, 2));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const openCitation = (fieldKey: string) => {
+    const citation = citations[fieldKey];
+    if (citation && documentText) {
+      setPreviewField(fieldKey);
+      setPreviewCitation(citation);
+      setPreviewOpen(true);
+    }
   };
 
   const formatValue = (value: unknown): string => {
@@ -76,16 +95,17 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
   const getCategoryFields = (category: string): Array<{ key: string; value: unknown }> => {
     const fields = fieldCategories[category] || [];
     return fields
-      .filter((field) => field in data)
-      .map((field) => ({ key: field, value: data[field] }));
+      .filter((field) => field in displayData)
+      .map((field) => ({ key: field, value: displayData[field] }));
   };
 
   const categorizedFields = new Set(Object.values(fieldCategories).flat());
-  const uncategorizedFields = Object.entries(data)
-    .filter(([key]) => !categorizedFields.has(key))
+  const uncategorizedFields = Object.entries(displayData)
+    .filter(([key]) => !categorizedFields.has(key) && key !== '_citations')
     .map(([key, value]) => ({ key, value }));
 
-  const fieldCount = Object.keys(data).length;
+  const fieldCount = Object.keys(displayData).length;
+  const citationCount = Object.keys(citations).length;
 
   return (
     <div 
@@ -182,7 +202,19 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
                             className="px-5 py-3 text-sm"
                             style={{ color: 'var(--slate-900)' }}
                           >
-                            {formatValue(value)}
+                            <div className="flex items-start justify-between gap-2">
+                              <span>{formatValue(value)}</span>
+                              {citations[key] && documentText && (
+                                <button
+                                  onClick={() => openCitation(key)}
+                                  className="shrink-0 p-1 rounded transition-colors hover:bg-blue-50"
+                                  style={{ color: 'var(--accelerant-blue)' }}
+                                  title="View source in document"
+                                >
+                                  <Quote className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -229,7 +261,19 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
                           className="px-5 py-3 text-sm"
                           style={{ color: 'var(--slate-900)' }}
                         >
-                          {formatValue(value)}
+                          <div className="flex items-start justify-between gap-2">
+                            <span>{formatValue(value)}</span>
+                            {citations[key] && documentText && (
+                              <button
+                                onClick={() => openCitation(key)}
+                                className="shrink-0 p-1 rounded transition-colors hover:bg-blue-50"
+                                style={{ color: 'var(--accelerant-blue)' }}
+                                title="View source in document"
+                              >
+                                <Quote className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -244,7 +288,7 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
           className="p-5 text-sm overflow-auto max-h-96"
           style={{ backgroundColor: 'var(--slate-50)', color: 'var(--slate-900)' }}
         >
-          {JSON.stringify(data, null, 2)}
+          {JSON.stringify(displayData, null, 2)}
         </pre>
       )}
 
@@ -264,6 +308,24 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
           </ul>
         </div>
       )}
+
+      {citationCount > 0 && documentText && (
+        <div 
+          className="px-5 py-2 border-t text-xs flex items-center"
+          style={{ backgroundColor: 'var(--slate-50)', borderColor: 'var(--slate-200)', color: 'var(--slate-500)' }}
+        >
+          <Quote className="h-3 w-3 mr-1.5" style={{ color: 'var(--accelerant-blue)' }} />
+          {citationCount} fields have source citations. Click the quote icon to view the source text.
+        </div>
+      )}
+
+      <DocumentPreview
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        documentText={documentText}
+        highlightText={previewCitation}
+        fieldName={previewField}
+      />
     </div>
   );
 }

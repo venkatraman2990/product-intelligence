@@ -296,6 +296,7 @@ export default function ContractDetailPage() {
                     <ResultsTable
                       data={extraction.extracted_data}
                       notes={extraction.extraction_notes}
+                      documentText={contract.extracted_text || ''}
                     />
                   </div>
                 )}
