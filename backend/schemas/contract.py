@@ -93,10 +93,13 @@ class ContractVersionResponse(BaseModel):
 class UploadResponse(BaseModel):
     """Response after successful upload."""
 
-    contract_id: str
+    id: str  # Contract ID (for frontend compatibility)
+    contract_id: str  # Contract ID (legacy)
     filename: str
     file_type: str
     file_size_bytes: int
     page_count: Optional[int] = None
     text_preview: str
     message: str = "Contract uploaded successfully"
+    is_duplicate: bool = False
+    existing_contract_id: Optional[str] = None

@@ -94,9 +94,22 @@ async def upload_contract(
     if existing:
         # Remove uploaded file (duplicate)
         file_path.unlink()
-        raise HTTPException(
+        # Return duplicate info with 409 status but proper response body
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
             status_code=409,
-            detail=f"Document already exists with ID: {existing.id}"
+            content={
+                "id": existing.id,
+                "contract_id": existing.id,
+                "existing_contract_id": existing.id,
+                "filename": existing.original_filename,
+                "file_type": existing.file_type,
+                "file_size_bytes": existing.file_size_bytes,
+                "page_count": existing.page_count,
+                "text_preview": (existing.extracted_text or "")[:2000],
+                "message": "Document already exists",
+                "is_duplicate": True,
+            }
         )
 
     # Parse document
@@ -134,6 +147,7 @@ async def upload_contract(
     text_preview = extracted_text[:2000] if extracted_text else ""
 
     return UploadResponse(
+        id=contract.id,
         contract_id=contract.id,
         filename=file.filename,
         file_type=contract.file_type,
