@@ -28,7 +28,6 @@ export default function ContractDetailPage() {
 
   const [activeExtraction, setActiveExtraction] = useState<string | null>(null);
 
-  // Fetch contract details
   const {
     data: contract,
     isLoading: contractLoading,
@@ -39,15 +38,13 @@ export default function ContractDetailPage() {
     enabled: !!id,
   });
 
-  // Fetch extractions for this contract
   const { data: extractions, refetch: refetchExtractions } = useQuery({
     queryKey: ['extractions', id],
     queryFn: () => extractionsApi.listByContract(id!),
     enabled: !!id,
-    refetchInterval: activeExtraction ? 2000 : false, // Poll when extraction is running
+    refetchInterval: activeExtraction ? 2000 : false,
   });
 
-  // Start extraction mutation
   const startExtractionMutation = useMutation({
     mutationFn: ({
       contractId,
@@ -64,7 +61,6 @@ export default function ContractDetailPage() {
     },
   });
 
-  // Check extraction status and stop polling when complete
   useEffect(() => {
     if (extractions && activeExtraction) {
       const extraction = extractions.find((e: Extraction) => e.id === activeExtraction);
@@ -94,7 +90,6 @@ export default function ContractDetailPage() {
       extraction_ids: [extractionId],
       format,
     });
-    // Download the file
     window.open(exportsApi.download(response.download_url.split('/').pop()!), '_blank');
   };
 
@@ -111,20 +106,20 @@ export default function ContractDetailPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5" style={{ color: 'var(--success-green)' }} />;
       case 'failed':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
       case 'processing':
-        return <Loader2 className="h-5 w-5 text-indigo-500 animate-spin" />;
+        return <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--accelerant-blue)' }} />;
       default:
-        return <Clock className="h-5 w-5 text-gray-400" />;
+        return <Clock className="h-5 w-5" style={{ color: 'var(--slate-400)' }} />;
     }
   };
 
   if (contractLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--slate-400)' }} />
       </div>
     );
   }
@@ -133,10 +128,11 @@ export default function ContractDetailPage() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-        <p className="mt-2 text-gray-500">Contract not found</p>
+        <p className="mt-2" style={{ color: 'var(--slate-500)' }}>Contract not found</p>
         <Link
           to="/contracts"
-          className="mt-4 inline-flex items-center text-indigo-600 hover:text-indigo-700"
+          className="mt-4 inline-flex items-center"
+          style={{ color: 'var(--accelerant-blue)' }}
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to contracts
@@ -147,60 +143,58 @@ export default function ContractDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <Link
             to="/contracts"
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--slate-400)' }}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="ml-3">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {contract.original_filename}
-            </h1>
-            <p className="text-sm text-gray-500">
-              {contract.page_count} pages • Uploaded{' '}
-              {formatDate(contract.uploaded_at)}
+            <h1 className="page-title">{contract.original_filename}</h1>
+            <p className="text-description">
+              {contract.page_count} pages &bull; Uploaded {formatDate(contract.uploaded_at)}
             </p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column: Document info and extraction controls */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Document info */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="card">
             <div className="flex items-center mb-4">
-              <FileText className="h-10 w-10 text-gray-400" />
+              <FileText className="h-10 w-10" style={{ color: 'var(--slate-400)' }} />
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium" style={{ color: 'var(--slate-900)' }}>
                   {contract.file_type.toUpperCase()}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs" style={{ color: 'var(--slate-500)' }}>
                   {(contract.file_size_bytes / 1024).toFixed(1)} KB
                 </p>
               </div>
             </div>
             {contract.extracted_text && (
               <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">
+                <h3 className="text-sm font-medium mb-2" style={{ color: 'var(--slate-600)' }}>
                   Text Preview
                 </h3>
-                <p className="text-sm text-gray-600 line-clamp-6 bg-gray-50 p-3 rounded-lg">
+                <p 
+                  className="text-sm line-clamp-6 p-3 rounded-xl"
+                  style={{ 
+                    color: 'var(--slate-600)',
+                    backgroundColor: 'var(--slate-50)'
+                  }}
+                >
                   {contract.extracted_text.slice(0, 500)}...
                 </p>
               </div>
             )}
           </div>
 
-          {/* Model picker */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6">
-            <h3 className="text-sm font-medium text-gray-900 mb-4">
-              Select Model for Extraction
-            </h3>
+          <div className="card">
+            <h3 className="card-title mb-4">Select Model for Extraction</h3>
             <ModelPicker
               onSelect={handleModelSelect}
               disabled={startExtractionMutation.isPending || !!activeExtraction}
@@ -212,16 +206,16 @@ export default function ContractDetailPage() {
                 startExtractionMutation.isPending ||
                 !!activeExtraction
               }
-              className="mt-4 w-full inline-flex items-center justify-center px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-primary w-full mt-4"
             >
               {startExtractionMutation.isPending || activeExtraction ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Extracting...
                 </>
               ) : (
                 <>
-                  <Play className="h-4 w-4 mr-2" />
+                  <Play className="h-4 w-4" />
                   Start Extraction
                 </>
               )}
@@ -229,31 +223,29 @@ export default function ContractDetailPage() {
           </div>
         </div>
 
-        {/* Right column: Extraction results */}
         <div className="lg:col-span-2 space-y-6">
           {extractions?.length === 0 ? (
-            <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-              <FileText className="mx-auto h-12 w-12 text-gray-300" />
-              <p className="mt-2 text-gray-500">No extractions yet</p>
-              <p className="text-sm text-gray-400">
+            <div className="card text-center py-12">
+              <FileText className="mx-auto h-12 w-12" style={{ color: 'var(--slate-300)' }} />
+              <p className="mt-2" style={{ color: 'var(--slate-500)' }}>No extractions yet</p>
+              <p className="text-sm" style={{ color: 'var(--slate-400)' }}>
                 Select a model and start extraction
               </p>
             </div>
           ) : (
             extractions?.map((extraction: Extraction) => (
-              <div
-                key={extraction.id}
-                className="bg-white border border-gray-200 rounded-lg overflow-hidden"
-              >
-                {/* Extraction header */}
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+              <div key={extraction.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div 
+                  className="px-5 py-4 flex items-center justify-between border-b"
+                  style={{ backgroundColor: 'var(--slate-50)', borderColor: 'var(--slate-200)' }}
+                >
                   <div className="flex items-center">
                     {getStatusIcon(extraction.status)}
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium" style={{ color: 'var(--slate-900)' }}>
                         {extraction.model_provider} / {extraction.model_name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs" style={{ color: 'var(--slate-500)' }}>
                         {extraction.completed_at
                           ? formatDate(extraction.completed_at)
                           : extraction.started_at
@@ -263,52 +255,50 @@ export default function ContractDetailPage() {
                     </div>
                   </div>
                   {extraction.status === 'completed' && (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleExport(extraction.id, 'xlsx')}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                        className="btn-secondary text-sm py-1.5 px-3"
                       >
-                        <Download className="h-4 w-4 mr-1" />
+                        <Download className="h-4 w-4" />
                         Excel
                       </button>
                       <button
                         onClick={() => handleExport(extraction.id, 'json')}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                        className="btn-secondary text-sm py-1.5 px-3"
                       >
-                        <Download className="h-4 w-4 mr-1" />
+                        <Download className="h-4 w-4" />
                         JSON
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Extraction content */}
                 {extraction.status === 'processing' && (
                   <div className="px-6 py-8 text-center">
-                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-500" />
-                    <p className="mt-2 text-sm text-gray-500">
+                    <Loader2 className="mx-auto h-8 w-8 animate-spin" style={{ color: 'var(--accelerant-blue)' }} />
+                    <p className="mt-2 text-sm" style={{ color: 'var(--slate-500)' }}>
                       Extracting data from document...
                     </p>
                   </div>
                 )}
 
                 {extraction.status === 'failed' && (
-                  <div className="px-6 py-4 bg-red-50">
+                  <div className="px-6 py-4" style={{ backgroundColor: '#FEF2F2' }}>
                     <p className="text-sm text-red-700">
                       {extraction.error_message || 'Extraction failed'}
                     </p>
                   </div>
                 )}
 
-                {extraction.status === 'completed' &&
-                  extraction.extracted_data && (
-                    <div className="p-4">
-                      <ResultsTable
-                        data={extraction.extracted_data}
-                        notes={extraction.extraction_notes}
-                      />
-                    </div>
-                  )}
+                {extraction.status === 'completed' && extraction.extracted_data && (
+                  <div className="p-5">
+                    <ResultsTable
+                      data={extraction.extracted_data}
+                      notes={extraction.extraction_notes}
+                    />
+                  </div>
+                )}
               </div>
             ))
           )}

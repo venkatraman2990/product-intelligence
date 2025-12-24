@@ -6,7 +6,6 @@ import {
   AlertCircle,
   CheckCircle,
   Download,
-  FileText,
 } from 'lucide-react';
 import { extractionsApi, exportsApi } from '../api/client';
 import ResultsTable from '../components/results/ResultsTable';
@@ -22,8 +21,10 @@ export default function ExtractionDetailPage() {
     queryKey: ['extraction', id],
     queryFn: () => extractionsApi.get(id!),
     enabled: !!id,
-    refetchInterval: (data) =>
-      data?.status === 'processing' || data?.status === 'pending' ? 2000 : false,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data?.status === 'processing' || data?.status === 'pending' ? 2000 : false;
+    },
   });
 
   const handleExport = async (format: 'xlsx' | 'csv' | 'json') => {
@@ -48,7 +49,7 @@ export default function ExtractionDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--slate-400)' }} />
       </div>
     );
   }
@@ -57,10 +58,11 @@ export default function ExtractionDetailPage() {
     return (
       <div className="text-center py-12">
         <AlertCircle className="mx-auto h-12 w-12 text-red-400" />
-        <p className="mt-2 text-gray-500">Extraction not found</p>
+        <p className="mt-2" style={{ color: 'var(--slate-500)' }}>Extraction not found</p>
         <Link
           to="/contracts"
-          className="mt-4 inline-flex items-center text-indigo-600 hover:text-indigo-700"
+          className="mt-4 inline-flex items-center"
+          style={{ color: 'var(--accelerant-blue)' }}
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to contracts
@@ -71,61 +73,55 @@ export default function ExtractionDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center">
           <Link
             to={`/contracts/${extraction.contract_id}`}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--slate-400)' }}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="ml-3">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Extraction Results
-            </h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="page-title">Extraction Results</h1>
+            <p className="text-description">
               {extraction.model_provider} / {extraction.model_name}
             </p>
           </div>
         </div>
         {extraction.status === 'completed' && (
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => handleExport('xlsx')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Download className="h-4 w-4 mr-2" />
+          <div className="flex items-center gap-2">
+            <button onClick={() => handleExport('xlsx')} className="btn-secondary">
+              <Download className="h-4 w-4" />
               Export Excel
             </button>
-            <button
-              onClick={() => handleExport('csv')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Download className="h-4 w-4 mr-2" />
+            <button onClick={() => handleExport('csv')} className="btn-secondary">
+              <Download className="h-4 w-4" />
               Export CSV
             </button>
-            <button
-              onClick={() => handleExport('json')}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Download className="h-4 w-4 mr-2" />
+            <button onClick={() => handleExport('json')} className="btn-secondary">
+              <Download className="h-4 w-4" />
               Export JSON
             </button>
           </div>
         )}
       </div>
 
-      {/* Status banner */}
       {extraction.status === 'processing' && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 flex items-center">
-          <Loader2 className="h-5 w-5 text-indigo-500 animate-spin mr-3" />
-          <span className="text-indigo-700">Extracting data from document...</span>
+        <div 
+          className="card flex items-center"
+          style={{ backgroundColor: 'var(--accelerant-blue-light)', borderColor: 'var(--accelerant-blue-border)' }}
+        >
+          <Loader2 className="h-5 w-5 animate-spin mr-3" style={{ color: 'var(--accelerant-blue)' }} />
+          <span style={{ color: 'var(--accelerant-blue)' }}>Extracting data from document...</span>
         </div>
       )}
 
       {extraction.status === 'failed' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+        <div 
+          className="card flex items-center"
+          style={{ backgroundColor: '#FEF2F2', borderColor: '#FECACA' }}
+        >
           <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
           <span className="text-red-700">
             {extraction.error_message || 'Extraction failed'}
@@ -134,48 +130,47 @@ export default function ExtractionDetailPage() {
       )}
 
       {extraction.status === 'completed' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-          <span className="text-green-700">
-            Extraction completed • {extraction.fields_extracted || 0} fields extracted
+        <div 
+          className="card flex items-center"
+          style={{ backgroundColor: 'var(--emerald-50)', borderColor: 'var(--emerald-200)' }}
+        >
+          <CheckCircle className="h-5 w-5 mr-3" style={{ color: 'var(--success-green)' }} />
+          <span style={{ color: 'var(--emerald-700)' }}>
+            Extraction completed &bull; {extraction.fields_extracted || 0} fields extracted
           </span>
         </div>
       )}
 
-      {/* Metadata */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h2 className="text-sm font-medium text-gray-700 mb-4">
-          Extraction Details
-        </h2>
+      <div className="card">
+        <h2 className="card-title mb-4">Extraction Details</h2>
         <dl className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <dt className="text-xs text-gray-500">Status</dt>
-            <dd className="text-sm font-medium text-gray-900 capitalize">
+            <dt className="text-xs" style={{ color: 'var(--slate-500)' }}>Status</dt>
+            <dd className="text-sm font-medium capitalize" style={{ color: 'var(--slate-900)' }}>
               {extraction.status}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-gray-500">Model</dt>
-            <dd className="text-sm font-medium text-gray-900">
+            <dt className="text-xs" style={{ color: 'var(--slate-500)' }}>Model</dt>
+            <dd className="text-sm font-medium" style={{ color: 'var(--slate-900)' }}>
               {extraction.model_name}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-gray-500">Started</dt>
-            <dd className="text-sm font-medium text-gray-900">
+            <dt className="text-xs" style={{ color: 'var(--slate-500)' }}>Started</dt>
+            <dd className="text-sm font-medium" style={{ color: 'var(--slate-900)' }}>
               {extraction.started_at ? formatDate(extraction.started_at) : '-'}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-gray-500">Completed</dt>
-            <dd className="text-sm font-medium text-gray-900">
+            <dt className="text-xs" style={{ color: 'var(--slate-500)' }}>Completed</dt>
+            <dd className="text-sm font-medium" style={{ color: 'var(--slate-900)' }}>
               {extraction.completed_at ? formatDate(extraction.completed_at) : '-'}
             </dd>
           </div>
         </dl>
       </div>
 
-      {/* Results */}
       {extraction.status === 'completed' && extraction.extracted_data && (
         <ResultsTable
           data={extraction.extracted_data}

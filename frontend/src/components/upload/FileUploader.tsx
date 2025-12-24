@@ -46,7 +46,7 @@ export default function FileUploader({ onUploadComplete }: FileUploaderProps) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/msword',
     ];
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    const maxSize = 50 * 1024 * 1024;
 
     if (!allowedTypes.includes(file.type)) {
       setErrorMessage('Invalid file type. Please upload PDF or Word documents.');
@@ -108,17 +108,16 @@ export default function FileUploader({ onUploadComplete }: FileUploaderProps) {
 
   return (
     <div className="w-full">
-      {/* Drop zone */}
       <div
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
-        className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          dragActive
-            ? 'border-indigo-500 bg-indigo-50'
-            : 'border-gray-300 hover:border-gray-400'
-        }`}
+        className="relative border-2 border-dashed rounded-xl p-8 text-center transition-all"
+        style={{
+          borderColor: dragActive ? 'var(--accelerant-blue)' : 'var(--slate-200)',
+          backgroundColor: dragActive ? 'var(--accelerant-blue-light)' : 'transparent',
+        }}
       >
         <input
           type="file"
@@ -127,74 +126,82 @@ export default function FileUploader({ onUploadComplete }: FileUploaderProps) {
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
 
-        <Upload className={`mx-auto h-12 w-12 ${dragActive ? 'text-indigo-500' : 'text-gray-400'}`} />
-        <p className="mt-4 text-sm text-gray-600">
-          <span className="font-semibold text-indigo-600">Click to upload</span> or drag and drop
+        <Upload 
+          className="mx-auto h-12 w-12" 
+          style={{ color: dragActive ? 'var(--accelerant-blue)' : 'var(--slate-400)' }} 
+        />
+        <p className="mt-4 text-sm" style={{ color: 'var(--slate-600)' }}>
+          <span className="font-semibold" style={{ color: 'var(--accelerant-blue)' }}>Click to upload</span> or drag and drop
         </p>
-        <p className="mt-1 text-xs text-gray-500">PDF or Word documents (max 50MB)</p>
+        <p className="mt-1 text-xs" style={{ color: 'var(--slate-500)' }}>PDF or Word documents (max 50MB)</p>
       </div>
 
-      {/* Error message */}
       {errorMessage && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-700">
-          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-          <span className="text-sm">{errorMessage}</span>
+        <div 
+          className="mt-4 p-3 rounded-xl flex items-center"
+          style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}
+        >
+          <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
+          <span className="text-sm text-red-700">{errorMessage}</span>
         </div>
       )}
 
-      {/* Selected file */}
       {selectedFile && (
-        <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg">
+        <div 
+          className="mt-4 p-4 rounded-xl"
+          style={{ backgroundColor: 'white', border: '1px solid var(--slate-200)' }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <File className="h-8 w-8 text-gray-400" />
+              <File className="h-8 w-8" style={{ color: 'var(--slate-400)' }} />
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
-                <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--slate-900)' }}>{selectedFile.name}</p>
+                <p className="text-xs" style={{ color: 'var(--slate-500)' }}>{formatFileSize(selectedFile.size)}</p>
               </div>
             </div>
             <button
               onClick={handleClear}
-              className="p-1 text-gray-400 hover:text-gray-600"
+              className="p-1 rounded-lg transition-colors"
+              style={{ color: 'var(--slate-400)' }}
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Upload progress */}
           {uploadStatus === 'uploading' && (
             <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+              <div className="flex items-center justify-between text-xs mb-1" style={{ color: 'var(--slate-500)' }}>
                 <span>Uploading...</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-indigo-600 h-2 rounded-full animate-pulse w-full" />
+              <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--slate-200)' }}>
+                <div 
+                  className="h-2 rounded-full animate-pulse w-full" 
+                  style={{ backgroundColor: 'var(--accelerant-blue)' }}
+                />
               </div>
             </div>
           )}
 
-          {/* Upload success */}
           {uploadStatus === 'success' && uploadResult && (
-            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center text-green-700">
+            <div 
+              className="mt-3 p-3 rounded-xl"
+              style={{ backgroundColor: 'var(--emerald-50)', border: '1px solid var(--emerald-200)' }}
+            >
+              <div className="flex items-center" style={{ color: 'var(--emerald-700)' }}>
                 <CheckCircle className="h-5 w-5 mr-2" />
                 <span className="text-sm font-medium">
                   {uploadResult.is_duplicate ? 'Duplicate detected' : 'Upload successful'}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-green-600">{uploadResult.message}</p>
+              <p className="mt-1 text-xs" style={{ color: 'var(--success-green)' }}>{uploadResult.message}</p>
               {uploadResult.page_count && (
-                <p className="text-xs text-green-600">{uploadResult.page_count} pages extracted</p>
+                <p className="text-xs" style={{ color: 'var(--success-green)' }}>{uploadResult.page_count} pages extracted</p>
               )}
             </div>
           )}
 
-          {/* Upload button */}
           {uploadStatus === 'idle' && (
-            <button
-              onClick={handleUpload}
-              className="mt-3 w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-            >
+            <button onClick={handleUpload} className="btn-primary w-full mt-3">
               Upload Document
             </button>
           )}

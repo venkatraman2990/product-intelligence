@@ -6,7 +6,6 @@ interface ResultsTableProps {
   notes?: string[];
 }
 
-// Field categories for organization
 const fieldCategories: Record<string, string[]> = {
   'Metadata': [
     'member_name', 'product_name', 'product_description', 'effective_date',
@@ -81,7 +80,6 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
       .map((field) => ({ key: field, value: data[field] }));
   };
 
-  // Get uncategorized fields
   const categorizedFields = new Set(Object.values(fieldCategories).flat());
   const uncategorizedFields = Object.entries(data)
     .filter(([key]) => !categorizedFields.has(key))
@@ -90,49 +88,58 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
   const fieldCount = Object.keys(data).length;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+    <div 
+      className="rounded-xl overflow-hidden"
+      style={{ backgroundColor: 'white', border: '1px solid var(--slate-200)' }}
+    >
+      <div 
+        className="px-5 py-3 flex items-center justify-between border-b"
+        style={{ backgroundColor: 'var(--slate-50)', borderColor: 'var(--slate-200)' }}
+      >
         <div className="flex items-center space-x-4">
-          <h3 className="text-sm font-medium text-gray-900">Extracted Data</h3>
-          <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded">
-            {fieldCount} fields
-          </span>
+          <h3 className="card-title">Extracted Data</h3>
+          <span className="count-badge">{fieldCount} fields</span>
         </div>
         <div className="flex items-center space-x-2">
-          {/* View mode toggle */}
-          <div className="flex bg-gray-200 rounded-md p-0.5">
+          <div 
+            className="flex rounded-lg p-0.5"
+            style={{ backgroundColor: 'var(--slate-200)' }}
+          >
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded ${
-                viewMode === 'table' ? 'bg-white shadow-sm' : 'text-gray-500'
-              }`}
+              className="p-1.5 rounded-md transition-all"
+              style={{
+                backgroundColor: viewMode === 'table' ? 'white' : 'transparent',
+                boxShadow: viewMode === 'table' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                color: viewMode === 'table' ? 'var(--slate-900)' : 'var(--slate-500)',
+              }}
             >
               <Table className="h-4 w-4" />
             </button>
             <button
               onClick={() => setViewMode('json')}
-              className={`p-1.5 rounded ${
-                viewMode === 'json' ? 'bg-white shadow-sm' : 'text-gray-500'
-              }`}
+              className="p-1.5 rounded-md transition-all"
+              style={{
+                backgroundColor: viewMode === 'json' ? 'white' : 'transparent',
+                boxShadow: viewMode === 'json' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                color: viewMode === 'json' ? 'var(--slate-900)' : 'var(--slate-500)',
+              }}
             >
               <Code className="h-4 w-4" />
             </button>
           </div>
-          {/* Copy button */}
           <button
             onClick={copyToClipboard}
-            className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+            className="p-1.5 rounded-lg transition-colors"
+            style={{ color: 'var(--slate-500)' }}
           >
-            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            {copied ? <Check className="h-4 w-4" style={{ color: 'var(--success-green)' }} /> : <Copy className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      {/* Content */}
       {viewMode === 'table' ? (
-        <div className="divide-y divide-gray-200">
-          {/* Categorized fields */}
+        <div>
           {Object.keys(fieldCategories).map((category) => {
             const fields = getCategoryFields(category);
             if (fields.length === 0) return null;
@@ -140,30 +147,41 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
             const isExpanded = expandedCategories.has(category);
 
             return (
-              <div key={category}>
+              <div key={category} className="border-b" style={{ borderColor: 'var(--slate-200)' }}>
                 <button
                   onClick={() => toggleCategory(category)}
-                  className="w-full px-4 py-2 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="w-full px-5 py-3 flex items-center justify-between transition-colors"
+                  style={{ backgroundColor: 'var(--slate-50)' }}
                 >
                   <div className="flex items-center">
                     {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 text-gray-400 mr-2" />
+                      <ChevronDown className="h-4 w-4 mr-2" style={{ color: 'var(--slate-400)' }} />
                     ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-400 mr-2" />
+                      <ChevronRight className="h-4 w-4 mr-2" style={{ color: 'var(--slate-400)' }} />
                     )}
-                    <span className="text-sm font-medium text-gray-700">{category}</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--slate-600)' }}>{category}</span>
                   </div>
-                  <span className="text-xs text-gray-500">{fields.length} fields</span>
+                  <span className="text-xs" style={{ color: 'var(--slate-500)' }}>{fields.length} fields</span>
                 </button>
                 {isExpanded && (
                   <table className="w-full">
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody>
                       {fields.map(({ key, value }) => (
-                        <tr key={key} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-sm font-medium text-gray-600 w-1/3">
+                        <tr 
+                          key={key} 
+                          className="border-t transition-colors"
+                          style={{ borderColor: 'var(--slate-100)' }}
+                        >
+                          <td 
+                            className="px-5 py-3 text-sm font-medium w-1/3"
+                            style={{ color: 'var(--slate-600)' }}
+                          >
                             {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                           </td>
-                          <td className="px-4 py-2 text-sm text-gray-900">
+                          <td 
+                            className="px-5 py-3 text-sm"
+                            style={{ color: 'var(--slate-900)' }}
+                          >
                             {formatValue(value)}
                           </td>
                         </tr>
@@ -175,32 +193,42 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
             );
           })}
 
-          {/* Uncategorized fields */}
           {uncategorizedFields.length > 0 && (
-            <div>
+            <div className="border-b" style={{ borderColor: 'var(--slate-200)' }}>
               <button
                 onClick={() => toggleCategory('Other')}
-                className="w-full px-4 py-2 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="w-full px-5 py-3 flex items-center justify-between transition-colors"
+                style={{ backgroundColor: 'var(--slate-50)' }}
               >
                 <div className="flex items-center">
                   {expandedCategories.has('Other') ? (
-                    <ChevronDown className="h-4 w-4 text-gray-400 mr-2" />
+                    <ChevronDown className="h-4 w-4 mr-2" style={{ color: 'var(--slate-400)' }} />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-gray-400 mr-2" />
+                    <ChevronRight className="h-4 w-4 mr-2" style={{ color: 'var(--slate-400)' }} />
                   )}
-                  <span className="text-sm font-medium text-gray-700">Other Fields</span>
+                  <span className="text-sm font-medium" style={{ color: 'var(--slate-600)' }}>Other Fields</span>
                 </div>
-                <span className="text-xs text-gray-500">{uncategorizedFields.length} fields</span>
+                <span className="text-xs" style={{ color: 'var(--slate-500)' }}>{uncategorizedFields.length} fields</span>
               </button>
               {expandedCategories.has('Other') && (
                 <table className="w-full">
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody>
                     {uncategorizedFields.map(({ key, value }) => (
-                      <tr key={key} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 text-sm font-medium text-gray-600 w-1/3">
+                      <tr 
+                        key={key} 
+                        className="border-t transition-colors"
+                        style={{ borderColor: 'var(--slate-100)' }}
+                      >
+                        <td 
+                          className="px-5 py-3 text-sm font-medium w-1/3"
+                          style={{ color: 'var(--slate-600)' }}
+                        >
                           {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                         </td>
-                        <td className="px-4 py-2 text-sm text-gray-900">
+                        <td 
+                          className="px-5 py-3 text-sm"
+                          style={{ color: 'var(--slate-900)' }}
+                        >
                           {formatValue(value)}
                         </td>
                       </tr>
@@ -212,19 +240,24 @@ export default function ResultsTable({ data, notes = [] }: ResultsTableProps) {
           )}
         </div>
       ) : (
-        <pre className="p-4 text-sm text-gray-800 overflow-auto max-h-96 bg-gray-50">
+        <pre 
+          className="p-5 text-sm overflow-auto max-h-96"
+          style={{ backgroundColor: 'var(--slate-50)', color: 'var(--slate-900)' }}
+        >
           {JSON.stringify(data, null, 2)}
         </pre>
       )}
 
-      {/* Extraction notes */}
       {notes.length > 0 && (
-        <div className="px-4 py-3 bg-yellow-50 border-t border-yellow-200">
-          <h4 className="text-sm font-medium text-yellow-800 mb-2">Extraction Notes</h4>
-          <ul className="text-sm text-yellow-700 space-y-1">
+        <div 
+          className="px-5 py-3 border-t"
+          style={{ backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }}
+        >
+          <h4 className="text-sm font-medium mb-2" style={{ color: '#92400E' }}>Extraction Notes</h4>
+          <ul className="text-sm space-y-1" style={{ color: '#B45309' }}>
             {notes.map((note, idx) => (
               <li key={idx} className="flex items-start">
-                <span className="mr-2">•</span>
+                <span className="mr-2">&bull;</span>
                 <span>{note}</span>
               </li>
             ))}
