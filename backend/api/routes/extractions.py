@@ -244,7 +244,13 @@ async def list_contract_extractions(
             model_name=e.model_name,
             status=e.status,
             fields_extracted=e.fields_extracted,
+            fields_total=e.fields_total,
             created_at=e.created_at,
+            started_at=e.started_at,
+            completed_at=e.completed_at,
+            error_message=e.error_message,
+            extracted_data=e.extracted_data or {},
+            extraction_notes=e.extraction_notes or [],
         )
         for e in extractions
     ]
@@ -321,7 +327,13 @@ async def list_extractions(
             model_name=e.model_name,
             status=e.status,
             fields_extracted=e.fields_extracted,
+            fields_total=e.fields_total,
             created_at=e.created_at,
+            started_at=e.started_at,
+            completed_at=e.completed_at,
+            error_message=e.error_message,
+            extracted_data=e.extracted_data or {},
+            extraction_notes=e.extraction_notes or [],
         ))
 
     return result

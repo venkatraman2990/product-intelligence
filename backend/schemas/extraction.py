@@ -77,7 +77,13 @@ class ExtractionSummary(BaseModel):
     model_name: str
     status: str
     fields_extracted: Optional[int] = None
+    fields_total: Optional[int] = None
     created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    extracted_data: dict = Field(default_factory=dict)
+    extraction_notes: list = Field(default_factory=list)
 
     class Config:
         from_attributes = True
