@@ -25,7 +25,7 @@ export default function ModelPicker({ onSelect, disabled = false }: ModelPickerP
   });
 
   useEffect(() => {
-    if (data) {
+    if (data?.models) {
       const providerModels = data.models[selectedProvider as keyof typeof data.models] || [];
       const defaultModel = providerModels.find((m: ExtractionModel) => m.is_default && m.is_configured);
       const configuredModel = providerModels.find((m: ExtractionModel) => m.is_configured);
@@ -107,7 +107,7 @@ export default function ModelPicker({ onSelect, disabled = false }: ModelPickerP
       </div>
 
       <div className="space-y-2">
-        {data?.models[selectedProvider as keyof typeof data.models]?.map((model: ExtractionModel) => {
+        {(data?.models?.[selectedProvider as keyof typeof data.models] ?? []).map((model: ExtractionModel) => {
           const isSelected = selectedModel === model.model_name;
           return (
             <button
