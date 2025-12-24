@@ -16,17 +16,11 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
-        timeout: 120000,
-        configure: (proxy) => {
-          proxy.on('error', (err) => {
-            console.log('proxy error', err);
-          });
-          proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('Connection', 'keep-alive');
-          });
-        },
+        secure: false,
+        ws: false,
+        xfwd: true,
       },
     },
   },

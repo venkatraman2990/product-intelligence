@@ -21,58 +21,61 @@ const api = axios.create({
   },
 });
 
+// Get the direct backend URL for file uploads (bypasses proxy)
+const getDirectBackendUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    // Replace port 80 suffix or use port 8000 directly
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    // In Replit dev, use the same domain with port 8000
+    return `${protocol}//${hostname}:8000`;
+  }
+  return 'http://localhost:8000';
+};
+
 // Contract endpoints
 export const contractsApi = {
   upload: async (file: File): Promise<UploadResponse> => {
     console.log('[Upload] Starting upload for file:', file.name, 'size:', file.size);
     
-    return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Use direct backend URL to bypass proxy for file uploads
+    const backendUrl = getDirectBackendUrl();
+    const uploadUrl = `${backendUrl}/api/contracts/upload`;
+    console.log('[Upload] Using URL:', uploadUrl);
+    
+    try {
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+        mode: 'cors',
+      });
       
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', '/api/contracts/upload', true);
+      console.log('[Upload] Response status:', response.status);
       
-      xhr.onload = function() {
-        console.log('[Upload] Response received, status:', xhr.status);
-        try {
-          const data = JSON.parse(xhr.responseText);
-          console.log('[Upload] Response data:', data);
-          
-          if (xhr.status === 409) {
-            resolve({ ...data, is_duplicate: true });
-          } else if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(data);
-          } else {
-            reject(new Error(data.detail || `Upload failed with status ${xhr.status}`));
-          }
-        } catch (e) {
-          console.error('[Upload] Failed to parse response:', xhr.responseText);
-          reject(new Error('Failed to parse server response'));
-        }
-      };
+      if (!response.ok && response.status !== 409) {
+        const errorText = await response.text();
+        console.error('[Upload] Error response:', errorText);
+        throw new Error(errorText || `Upload failed with status ${response.status}`);
+      }
       
-      xhr.onerror = function() {
-        console.error('[Upload] XHR error occurred');
-        reject(new Error('Unable to connect to the server. Please check your connection and try again.'));
-      };
+      const data = await response.json();
+      console.log('[Upload] Response data:', data);
       
-      xhr.ontimeout = function() {
-        console.error('[Upload] Request timed out');
-        reject(new Error('Upload timed out. Please try again.'));
-      };
+      if (response.status === 409) {
+        return { ...data, is_duplicate: true };
+      }
       
-      xhr.upload.onprogress = function(e) {
-        if (e.lengthComputable) {
-          const percent = Math.round((e.loaded / e.total) * 100);
-          console.log('[Upload] Progress:', percent + '%');
-        }
-      };
-      
-      xhr.timeout = 120000;
-      console.log('[Upload] Sending request...');
-      xhr.send(formData);
-    });
+      return data;
+    } catch (error) {
+      console.error('[Upload] Error:', error);
+      if (error instanceof TypeError) {
+        throw new Error('Unable to connect to the server. Please check your connection and try again.');
+      }
+      throw error;
+    }
   },
 
   list: async (skip = 0, limit = 20): Promise<ContractListResponse> => {
