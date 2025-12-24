@@ -77,6 +77,11 @@ CSS variables are defined in `frontend/src/index.css` for consistent theming.
 
 ## Recent Changes
 
+- 2024-12-24: Fixed extraction status display
+  - Updated ExtractionSummary to include full extraction data (started_at, completed_at, extracted_data, extraction_notes)
+  - Contract detail page now properly shows completed extractions with all extracted fields
+  - Fixed duplicate upload handling to return proper JSON with existing_contract_id
+
 - 2024-12-24: Accelerant Design System implementation
   - Redesigned all pages with consistent Accelerant styling
   - Updated Layout with sidebar navigation and breadcrumbs
