@@ -1,0 +1,31 @@
+# Document processing
+PyMuPDF>=1.23.0
+python-docx>=1.1.0
+
+# Data modeling
+pydantic>=2.0.0
+
+# Excel export
+openpyxl>=3.1.0
+
+# LLM extraction
+anthropic>=0.18.0
+openai>=1.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+click>=8.1.0
+rich>=13.0.0
+
+# Backend API (FastAPI)
+fastapi>=0.100.0
+uvicorn>=0.23.0
+sqlalchemy>=2.0.0
+python-multipart>=0.0.6
+
+# Database (PostgreSQL optional, SQLite default)
+# psycopg2-binary>=2.9.0  # Uncomment for PostgreSQL
+
+# Phase 2 - Snowflake (uncomment when needed)
+# snowflake-connector-python>=3.0.0
+# snowflake-sqlalchemy>=1.5.0
