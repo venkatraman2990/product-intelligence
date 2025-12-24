@@ -63,7 +63,25 @@ The application runs with two workflows:
 - `ANTHROPIC_API_KEY`: For Anthropic Claude extractions
 - `OPENAI_API_KEY`: For OpenAI GPT extractions
 
+## Accelerant Design System
+
+The frontend follows the Accelerant Design System with:
+- **Primary Color**: Accelerant Blue (#3B82F6)
+- **Gray Palette**: Slate color scale (slate-50 through slate-900)
+- **Cards**: 12px border radius, 20px padding, white background with subtle border
+- **Tables**: Uppercase 12px headers, slate-50 background for headers
+- **Buttons**: Primary buttons use Accelerant Blue, secondary buttons have blue borders
+- **Sidebar**: Fixed 256px width with navigation items and settings section
+
+CSS variables are defined in `frontend/src/index.css` for consistent theming.
+
 ## Recent Changes
+
+- 2024-12-24: Accelerant Design System implementation
+  - Redesigned all pages with consistent Accelerant styling
+  - Updated Layout with sidebar navigation and breadcrumbs
+  - Styled all components (FileUploader, ModelPicker, ResultsTable)
+  - Added CSS variables for color palette and utility classes
 
 - 2024-12-24: Initial Replit setup
   - Configured Vite for Tailwind CSS v4 with @tailwindcss/postcss
