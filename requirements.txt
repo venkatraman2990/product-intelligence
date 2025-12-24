@@ -29,3 +29,17 @@ python-multipart>=0.0.6
 # Phase 2 - Snowflake (uncomment when needed)
 # snowflake-connector-python>=3.0.0
 # snowflake-sqlalchemy>=1.5.0
+anthropic
+click
+fastapi
+openai
+openpyxl
+pydantic
+PyMuPDF
+python-docx
+python-dotenv
+python-multipart
+rich
+sqlalchemy
+uvicorn
+requests
