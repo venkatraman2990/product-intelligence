@@ -81,7 +81,7 @@ export default function ModelPicker({ onSelect, disabled = false }: ModelPickerP
         style={{ borderColor: 'var(--slate-200)' }}
       >
         {providers.map((provider) => {
-          const isConfigured = data?.configured_providers.includes(provider);
+          const isConfigured = data?.configured_providers?.includes(provider) ?? false;
           const isActive = selectedProvider === provider;
 
           return (

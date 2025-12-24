@@ -25,10 +25,23 @@ export const contractsApi = {
   upload: async (file: File): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post('/api/contracts/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
+    try {
+      const response = await api.post('/api/contracts/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: UploadResponse } };
+        if (axiosError.response?.status === 409 && axiosError.response?.data) {
+          return {
+            ...axiosError.response.data,
+            is_duplicate: true,
+          };
+        }
+      }
+      throw error;
+    }
   },
 
   list: async (skip = 0, limit = 20): Promise<ContractListResponse> => {
