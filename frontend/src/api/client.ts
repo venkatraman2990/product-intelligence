@@ -21,18 +21,6 @@ const api = axios.create({
   },
 });
 
-// Get the direct backend URL for file uploads (bypasses proxy)
-const getDirectBackendUrl = (): string => {
-  if (typeof window !== 'undefined') {
-    // Replace port 80 suffix or use port 8000 directly
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    // In Replit dev, use the same domain with port 8000
-    return `${protocol}//${hostname}:8000`;
-  }
-  return 'http://localhost:8000';
-};
-
 // Contract endpoints
 export const contractsApi = {
   upload: async (file: File): Promise<UploadResponse> => {
@@ -41,16 +29,10 @@ export const contractsApi = {
     const formData = new FormData();
     formData.append('file', file);
     
-    // Use direct backend URL to bypass proxy for file uploads
-    const backendUrl = getDirectBackendUrl();
-    const uploadUrl = `${backendUrl}/api/contracts/upload`;
-    console.log('[Upload] Using URL:', uploadUrl);
-    
     try {
-      const response = await fetch(uploadUrl, {
+      const response = await fetch('/api/contracts/upload', {
         method: 'POST',
         body: formData,
-        mode: 'cors',
       });
       
       console.log('[Upload] Response status:', response.status);

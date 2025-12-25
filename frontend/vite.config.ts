@@ -10,27 +10,17 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, '../attached_assets'),
     },
   },
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
   server: {
     host: '0.0.0.0',
-    port: 5000,
+    port: 5173,
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        secure: false,
-        ws: false,
-        xfwd: true,
-      },
-    },
-  },
-  preview: {
-    host: '0.0.0.0',
-    port: 5000,
-    allowedHosts: true,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true,
       },
     },
