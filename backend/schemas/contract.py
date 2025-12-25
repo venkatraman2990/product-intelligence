@@ -59,6 +59,7 @@ class ContractDetail(BaseModel):
     uploaded_at: datetime
     updated_at: datetime
     text_preview: Optional[str] = None  # First 1000 chars
+    extracted_text: Optional[str] = None  # Full document text for citation highlighting
 
     class Config:
         from_attributes = True

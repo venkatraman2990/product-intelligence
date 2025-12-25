@@ -227,6 +227,7 @@ async def get_contract(
         uploaded_at=contract.uploaded_at,
         updated_at=contract.updated_at,
         text_preview=text_preview,
+        extracted_text=contract.extracted_text,
     )
 
 
