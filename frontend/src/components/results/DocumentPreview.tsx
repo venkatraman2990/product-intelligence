@@ -43,58 +43,115 @@ export default function DocumentPreview({
 
   if (!isOpen) return null;
 
+  // Find the best matching substring using sliding window with word overlap scoring
+  const findBestMatch = (citation: string, document: string): { start: number; end: number; score: number } | null => {
+    const normalizedCitation = citation.toLowerCase().trim();
+    const normalizedDoc = document.toLowerCase();
+    
+    // First, try exact match
+    const exactIndex = normalizedDoc.indexOf(normalizedCitation);
+    if (exactIndex !== -1) {
+      return { start: exactIndex, end: exactIndex + citation.length, score: 1.0 };
+    }
+    
+    // Extract meaningful tokens from citation (words, state codes, numbers)
+    // Split on whitespace, commas, semicolons, colons, and hyphens/slashes (as delimiters)
+    const citationTokens = normalizedCitation
+      .split(/[\s,;:\-\/]+/)
+      .map(t => t.replace(/[^a-z0-9]/g, ''))
+      .filter(t => t.length >= 2);
+    
+    if (citationTokens.length === 0) {
+      return null;
+    }
+    
+    // Find all positions where citation tokens appear in the document
+    const tokenPositions: { token: string; pos: number }[] = [];
+    for (const token of citationTokens) {
+      let pos = 0;
+      while (pos < normalizedDoc.length) {
+        const idx = normalizedDoc.indexOf(token, pos);
+        if (idx === -1) break;
+        // Check word boundaries to avoid partial matches (allow hyphens/slashes as boundaries)
+        const beforeOk = idx === 0 || /[\s,;:\-\/\(\)\.]/.test(normalizedDoc[idx - 1]);
+        const afterOk = idx + token.length >= normalizedDoc.length || 
+                        /[\s,;:\-\/\(\)\.]/.test(normalizedDoc[idx + token.length]);
+        if (beforeOk && afterOk) {
+          tokenPositions.push({ token, pos: idx });
+        }
+        pos = idx + 1;
+      }
+    }
+    
+    if (tokenPositions.length === 0) {
+      return null;
+    }
+    
+    // Group nearby token matches and score each region
+    const windowSize = citation.length * 2;
+    let bestMatch: { start: number; end: number; score: number } | null = null;
+    
+    // Sort by position
+    tokenPositions.sort((a, b) => a.pos - b.pos);
+    
+    // Slide through document looking for clusters of matching tokens
+    for (let i = 0; i < tokenPositions.length; i++) {
+      const windowStart = tokenPositions[i].pos;
+      const windowEnd = windowStart + windowSize;
+      
+      // Count unique tokens in this window
+      const tokensInWindow = new Set<string>();
+      let lastPos = windowStart;
+      
+      for (const tp of tokenPositions) {
+        if (tp.pos >= windowStart && tp.pos < windowEnd) {
+          tokensInWindow.add(tp.token);
+          lastPos = Math.max(lastPos, tp.pos + tp.token.length);
+        }
+      }
+      
+      // Score = ratio of citation tokens found in this window
+      const score = tokensInWindow.size / citationTokens.length;
+      
+      // Require at least 30% of tokens to match to consider it valid
+      if (score >= 0.3 && (!bestMatch || score > bestMatch.score)) {
+        // Expand window slightly for context
+        const contextPadding = 20;
+        const start = Math.max(0, windowStart - contextPadding);
+        const end = Math.min(document.length, lastPos + contextPadding);
+        bestMatch = { start, end, score };
+      }
+    }
+    
+    return bestMatch;
+  };
+
   const renderHighlightedText = () => {
     if (!highlightText || !documentText) {
       return <span>{documentText}</span>;
     }
 
-    const normalizedHighlight = highlightText.toLowerCase().trim();
-    const normalizedDocument = documentText.toLowerCase();
+    const match = findBestMatch(highlightText, documentText);
     
-    const index = normalizedDocument.indexOf(normalizedHighlight);
-    
-    if (index === -1) {
-      const words = highlightText.split(/\s+/).filter(w => w.length > 4);
-      if (words.length > 0) {
-        const firstWord = words[0].toLowerCase();
-        const wordIndex = normalizedDocument.indexOf(firstWord);
-        if (wordIndex !== -1) {
-          const contextStart = Math.max(0, wordIndex - 50);
-          const contextEnd = Math.min(documentText.length, wordIndex + highlightText.length + 50);
-          
-          return (
-            <>
-              <span>{documentText.slice(0, contextStart)}</span>
-              <span
-                ref={highlightRef}
-                className="px-1 py-0.5 rounded"
-                style={{ backgroundColor: '#FEF08A', color: '#854D0E' }}
-              >
-                {documentText.slice(contextStart, contextEnd)}
-              </span>
-              <span>{documentText.slice(contextEnd)}</span>
-            </>
-          );
-        }
-      }
+    if (!match || match.score < 0.3) {
       return (
         <div>
           <div 
             className="mb-4 p-3 rounded-lg text-sm"
             style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}
           >
-            Could not find exact match for citation. Showing full document.
+            Could not find matching text in document for this citation.
             <br />
-            <strong>Citation text:</strong> "{highlightText}"
+            <strong>Expected text:</strong> "{highlightText.length > 200 ? highlightText.slice(0, 200) + '...' : highlightText}"
           </div>
           <span>{documentText}</span>
         </div>
       );
     }
 
-    const before = documentText.slice(0, index);
-    const match = documentText.slice(index, index + highlightText.length);
-    const after = documentText.slice(index + highlightText.length);
+    const before = documentText.slice(0, match.start);
+    const highlighted = documentText.slice(match.start, match.end);
+    const after = documentText.slice(match.end);
 
     return (
       <>
@@ -104,7 +161,7 @@ export default function DocumentPreview({
           className="px-1 py-0.5 rounded"
           style={{ backgroundColor: '#FEF08A', color: '#854D0E', fontWeight: 600 }}
         >
-          {match}
+          {highlighted}
         </span>
         <span>{after}</span>
       </>
