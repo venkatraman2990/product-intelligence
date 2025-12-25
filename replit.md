@@ -66,16 +66,25 @@ The application runs with two workflows:
 ## Accelerant Design System
 
 The frontend follows the Accelerant Design System with:
-- **Primary Color**: Accelerant Blue (#3B82F6)
+- **Branding**: Accelerant full-color logo (hummingbird + text) in sidebar
+- **Primary Button Color**: Teal/Green (#22C55E)
+- **Secondary Button Color**: Coral (#F97066)
+- **Navy Text Color**: (#1E3A5F)
 - **Gray Palette**: Slate color scale (slate-50 through slate-900)
 - **Cards**: 12px border radius, 20px padding, white background with subtle border
 - **Tables**: Uppercase 12px headers, slate-50 background for headers
-- **Buttons**: Primary buttons use Accelerant Blue, secondary buttons have blue borders
-- **Sidebar**: Fixed 256px width with navigation items and settings section
+- **Sidebar**: Light gray background (#F6F7F8), 256px width, green left border for active items
 
 CSS variables are defined in `frontend/src/index.css` for consistent theming.
 
 ## Recent Changes
+
+- 2024-12-25: Updated branding and design
+  - Replaced Product Intelligence icon with Accelerant full-color logo in sidebar
+  - Redesigned sidebar navigation with light gray background and green left border for active items
+  - Updated primary button color to Teal/Green (#22C55E)
+  - Updated secondary button color to Coral (#F97066)
+  - Added citation preview feature with document text highlighting
 
 - 2024-12-24: Fixed extraction status display
   - Updated ExtractionSummary to include full extraction data (started_at, completed_at, extracted_data, extraction_notes)
