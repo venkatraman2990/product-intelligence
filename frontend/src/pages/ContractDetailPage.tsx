@@ -90,7 +90,9 @@ export default function ContractDetailPage() {
       extraction_ids: [extractionId],
       format,
     });
-    window.open(exportsApi.download(response.download_url.split('/').pop()!), '_blank');
+    const parts = response.download_url.split('/');
+    const filename = parts[parts.length - 2];
+    window.open(exportsApi.download(filename), '_blank');
   };
 
   const formatDate = (dateString: string) => {
