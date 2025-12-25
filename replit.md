@@ -73,7 +73,7 @@ The frontend follows the Accelerant Design System with:
 - **Gray Palette**: Slate color scale (slate-50 through slate-900)
 - **Cards**: 12px border radius, 20px padding, white background with subtle border
 - **Tables**: Uppercase 12px headers, slate-50 background for headers
-- **Sidebar**: Light gray background (#F6F7F8), 256px width, green left border for active items
+- **Sidebar**: Light gray background (#F6F7F8), 256px width (collapsible to 64px), green left border for active items
 
 CSS variables are defined in `frontend/src/index.css` for consistent theming.
 

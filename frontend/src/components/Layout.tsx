@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { FileText, Upload, BarChart3, Settings, ChevronRight } from 'lucide-react';
+import { FileText, Upload, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import accelerantLogo from '../assets/accelerant-logo-transparent.png';
 
 const navigation = [
@@ -10,42 +11,33 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation();
-
-  const getBreadcrumb = () => {
-    const path = location.pathname;
-    if (path === '/') return [{ name: 'Dashboard', href: '/' }];
-    if (path === '/upload') return [{ name: 'Dashboard', href: '/' }, { name: 'Upload', href: '/upload' }];
-    if (path === '/contracts') return [{ name: 'Dashboard', href: '/' }, { name: 'Contracts', href: '/contracts' }];
-    if (path.startsWith('/contracts/')) return [
-      { name: 'Dashboard', href: '/' },
-      { name: 'Contracts', href: '/contracts' },
-      { name: 'Contract Details', href: path }
-    ];
-    if (path.startsWith('/extractions/')) return [
-      { name: 'Dashboard', href: '/' },
-      { name: 'Contracts', href: '/contracts' },
-      { name: 'Extraction Results', href: path }
-    ];
-    return [{ name: 'Dashboard', href: '/' }];
-  };
-
-  const breadcrumb = getBreadcrumb();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: 'var(--slate-50)' }}>
       <aside 
-        className="w-64 flex flex-col border-r"
+        className={`${sidebarCollapsed ? 'w-16' : 'w-64'} flex flex-col border-r transition-all duration-300`}
         style={{ backgroundColor: 'var(--sidebar-bg)', borderColor: 'var(--slate-200)' }}
       >
-        <div className="p-6 pb-8">
-          <img 
-            src={accelerantLogo} 
-            alt="Accelerant" 
-            className="h-10 w-auto"
-          />
+        <div className={`${sidebarCollapsed ? 'p-3' : 'p-6 pb-8'} flex items-center justify-between`}>
+          {!sidebarCollapsed && (
+            <img 
+              src={accelerantLogo} 
+              alt="Accelerant" 
+              className="h-10 w-auto"
+            />
+          )}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2 rounded-lg transition-colors hover:bg-slate-200"
+            style={{ color: 'var(--slate-500)' }}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
         
-        <nav className="flex-1 px-3">
+        <nav className={`flex-1 ${sidebarCollapsed ? 'px-2' : 'px-3'}`}>
           <div className="space-y-1">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href || 
@@ -54,55 +46,58 @@ export default function Layout() {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`sidebar-item ${isActive ? 'active' : ''}`}
+                  className={`sidebar-item ${isActive ? 'active' : ''} ${sidebarCollapsed ? 'justify-center' : ''}`}
+                  title={sidebarCollapsed ? item.name : undefined}
                 >
-                  <item.icon className="h-5 w-5 mr-3" />
-                  {item.name}
+                  <item.icon className={`h-5 w-5 ${sidebarCollapsed ? '' : 'mr-3'}`} />
+                  {!sidebarCollapsed && item.name}
                 </Link>
               );
             })}
           </div>
 
-          <div className="mt-10">
-            <p 
-              className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider"
-              style={{ color: 'var(--slate-400)' }}
-            >
-              Admin
-            </p>
-            <Link
-              to="#"
-              className="sidebar-item"
-            >
-              <Settings className="h-5 w-5 mr-3" />
-              Settings
-            </Link>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="mt-10">
+              <p 
+                className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--slate-400)' }}
+              >
+                Admin
+              </p>
+              <Link
+                to="#"
+                className="sidebar-item"
+              >
+                <Settings className="h-5 w-5 mr-3" />
+                Settings
+              </Link>
+            </div>
+          )}
+          {sidebarCollapsed && (
+            <div className="mt-10">
+              <Link
+                to="#"
+                className="sidebar-item justify-center"
+                title="Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </Link>
+            </div>
+          )}
         </nav>
       </aside>
 
       <div className="flex-1 flex flex-col">
         <header 
           className="h-14 flex items-center justify-between px-8 border-b"
-          style={{ backgroundColor: 'white', borderColor: 'var(--slate-200)' }}
+          style={{ backgroundColor: 'transparent', borderColor: 'var(--slate-200)' }}
         >
-          <nav className="flex items-center gap-2 text-sm" style={{ color: 'var(--slate-500)' }}>
-            {breadcrumb.map((item, index) => (
-              <div key={item.href} className="flex items-center gap-2">
-                {index > 0 && <ChevronRight className="h-4 w-4" style={{ color: 'var(--slate-400)' }} />}
-                <Link 
-                  to={item.href}
-                  className="hover:underline"
-                  style={{ 
-                    color: index === breadcrumb.length - 1 ? 'var(--slate-900)' : 'var(--slate-500)',
-                    fontWeight: index === breadcrumb.length - 1 ? 500 : 400
-                  }}
-                >
-                  {item.name}
-                </Link>
-              </div>
-            ))}
-          </nav>
+          <h1 
+            className="text-xl font-semibold"
+            style={{ color: 'var(--accelerant-navy)' }}
+          >
+            Product Intelligence
+          </h1>
 
           <div className="flex items-center gap-4">
             <div 
