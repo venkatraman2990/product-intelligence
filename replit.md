@@ -34,9 +34,11 @@ This is a full-stack application with:
 
 ## Running the Application
 
-The application runs with two workflows:
-1. **Backend API**: `python -m uvicorn backend.main:app --host localhost --port 8000 --reload`
-2. **Frontend**: `npm run dev` (in frontend directory, runs on port 5000)
+The application runs with a single unified server:
+- **App**: `python -m uvicorn backend.main:app --host 0.0.0.0 --port 5000 --reload`
+
+The FastAPI backend serves both the API endpoints (under `/api`) and the React frontend static files.
+Before running, build the frontend with: `cd frontend && npm run build`
 
 ## Database
 
