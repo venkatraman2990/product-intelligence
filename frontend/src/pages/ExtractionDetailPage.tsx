@@ -7,7 +7,7 @@ import {
   CheckCircle,
   Download,
 } from 'lucide-react';
-import { extractionsApi, exportsApi } from '../api/client';
+import { extractionsApi, exportsApi, contractsApi } from '../api/client';
 import ResultsTable from '../components/results/ResultsTable';
 
 export default function ExtractionDetailPage() {
@@ -25,6 +25,12 @@ export default function ExtractionDetailPage() {
       const data = query.state.data;
       return data?.status === 'processing' || data?.status === 'pending' ? 2000 : false;
     },
+  });
+
+  const { data: contract } = useQuery({
+    queryKey: ['contract', extraction?.contract_id],
+    queryFn: () => contractsApi.get(extraction!.contract_id),
+    enabled: !!extraction?.contract_id,
   });
 
   const handleExport = async (format: 'xlsx' | 'csv' | 'json') => {
@@ -177,6 +183,7 @@ export default function ExtractionDetailPage() {
         <ResultsTable
           data={extraction.extracted_data}
           notes={extraction.extraction_notes}
+          documentText={contract?.extracted_text || ''}
         />
       )}
     </div>

@@ -309,7 +309,7 @@ export default function ModelPicker({ onSelect, disabled = false }: ModelPickerP
   return (
     <div className="space-y-4">
       <div 
-        className="flex space-x-2 border-b"
+        className="flex border-b"
         style={{ borderColor: 'var(--slate-200)' }}
       >
         {providers.map((provider) => {
@@ -321,17 +321,28 @@ export default function ModelPicker({ onSelect, disabled = false }: ModelPickerP
               key={provider}
               onClick={() => handleProviderChange(provider)}
               disabled={disabled}
-              className="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+              className="flex-1 px-2 py-2 text-center border-b-2 transition-colors"
               style={{
                 borderColor: isActive ? 'var(--accelerant-blue)' : 'transparent',
-                color: isActive ? 'var(--accelerant-blue)' : 'var(--slate-500)',
-                opacity: !isConfigured ? 0.5 : 1,
                 cursor: disabled ? 'not-allowed' : 'pointer',
               }}
             >
-              {providerLabels[provider]}
+              <span 
+                className="text-sm font-medium block"
+                style={{ 
+                  color: isActive ? 'var(--accelerant-blue)' : 'var(--slate-600)',
+                  opacity: !isConfigured ? 0.6 : 1,
+                }}
+              >
+                {providerLabels[provider]}
+              </span>
               {!isConfigured && (
-                <span className="ml-1 text-xs" style={{ color: 'var(--slate-400)' }}>(not configured)</span>
+                <span 
+                  className="text-xs block mt-0.5"
+                  style={{ color: 'var(--slate-400)' }}
+                >
+                  (not configured)
+                </span>
               )}
             </button>
           );
