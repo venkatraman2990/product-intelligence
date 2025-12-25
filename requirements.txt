@@ -43,3 +43,4 @@ rich
 sqlalchemy
 uvicorn
 requests
+httpx

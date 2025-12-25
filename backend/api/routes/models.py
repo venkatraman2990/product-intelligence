@@ -1,9 +1,11 @@
 """Extraction models management endpoints."""
 
 import os
+import httpx
 from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.api.deps import get_db
@@ -11,6 +13,31 @@ from backend.models.extraction import ExtractionModel
 from backend.schemas.models import ExtractionModelResponse, ProviderInfo, ModelPickerResponse
 
 router = APIRouter()
+
+MODEL_DESCRIPTIONS = {
+    "opus": "Most capable for complex work",
+    "sonnet": "Best for everyday tasks", 
+    "haiku": "Fastest for quick answers",
+}
+
+def get_model_family(model_id: str) -> Optional[str]:
+    """Extract the model family (opus, sonnet, haiku) from model ID."""
+    model_lower = model_id.lower()
+    if "opus" in model_lower:
+        return "opus"
+    elif "sonnet" in model_lower:
+        return "sonnet"
+    elif "haiku" in model_lower:
+        return "haiku"
+    return None
+
+def get_model_version(display_name: str) -> str:
+    """Extract version number from display name like 'Claude Sonnet 4' -> '4'."""
+    parts = display_name.split()
+    for part in reversed(parts):
+        if part.replace('.', '').isdigit():
+            return part
+    return ""
 
 # Default models configuration
 DEFAULT_MODELS = [
@@ -171,3 +198,87 @@ async def list_providers():
             "is_configured": check_provider_configured(provider_id),
         })
     return providers
+
+
+@router.get("/anthropic")
+async def get_anthropic_models():
+    """Fetch available Claude models from Anthropic API dynamically."""
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    is_configured = bool(api_key)
+    
+    if not is_configured:
+        return {
+            "is_configured": False,
+            "featured_models": [],
+            "other_models": [],
+        }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.anthropic.com/v1/models",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+        
+        models_data = data.get("data", [])
+        
+        models_by_family: dict[str, list] = {
+            "opus": [],
+            "sonnet": [],
+            "haiku": [],
+            "other": [],
+        }
+        
+        for model in models_data:
+            model_id = model.get("id", "")
+            display_name = model.get("display_name", model_id)
+            created_at = model.get("created_at", "")
+            
+            family = get_model_family(model_id)
+            version = get_model_version(display_name)
+            
+            model_info = {
+                "id": model_id,
+                "display_name": display_name,
+                "family": family or "other",
+                "version": version,
+                "created_at": created_at,
+                "description": MODEL_DESCRIPTIONS.get(family, "") if family else "",
+            }
+            
+            if family:
+                models_by_family[family].append(model_info)
+            else:
+                models_by_family["other"].append(model_info)
+        
+        for family in models_by_family:
+            models_by_family[family].sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
+        featured_models = []
+        other_models = []
+        
+        for family in ["opus", "sonnet", "haiku"]:
+            if models_by_family[family]:
+                latest = models_by_family[family][0]
+                featured_models.append(latest)
+                other_models.extend(models_by_family[family][1:])
+        
+        other_models.extend(models_by_family["other"])
+        other_models.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
+        return {
+            "is_configured": True,
+            "featured_models": featured_models,
+            "other_models": other_models,
+        }
+        
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail="Failed to fetch Anthropic models")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching models: {str(e)}")

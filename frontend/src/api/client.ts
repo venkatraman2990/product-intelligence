@@ -100,10 +100,31 @@ export const extractionsApi = {
   },
 };
 
+// Anthropic models response type
+export interface AnthropicModel {
+  id: string;
+  display_name: string;
+  family: string;
+  version: string;
+  created_at: string;
+  description: string;
+}
+
+export interface AnthropicModelsResponse {
+  is_configured: boolean;
+  featured_models: AnthropicModel[];
+  other_models: AnthropicModel[];
+}
+
 // Models endpoint
 export const modelsApi = {
   getAll: async (): Promise<ModelsResponse> => {
     const response = await api.get('/api/models/picker');
+    return response.data;
+  },
+  
+  getAnthropic: async (): Promise<AnthropicModelsResponse> => {
+    const response = await api.get('/api/models/anthropic');
     return response.data;
   },
 };
