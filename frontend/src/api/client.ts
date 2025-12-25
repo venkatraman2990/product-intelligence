@@ -24,37 +24,22 @@ const api = axios.create({
 // Contract endpoints
 export const contractsApi = {
   upload: async (file: File): Promise<UploadResponse> => {
-    console.log('[Upload] Starting upload for file:', file.name, 'size:', file.size);
-    
     const formData = new FormData();
     formData.append('file', file);
-    
     try {
-      const response = await fetch('/api/contracts/upload', {
-        method: 'POST',
-        body: formData,
+      const response = await api.post('/api/contracts/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
-      console.log('[Upload] Response status:', response.status);
-      
-      if (!response.ok && response.status !== 409) {
-        const errorText = await response.text();
-        console.error('[Upload] Error response:', errorText);
-        throw new Error(errorText || `Upload failed with status ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('[Upload] Response data:', data);
-      
-      if (response.status === 409) {
-        return { ...data, is_duplicate: true };
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('[Upload] Error:', error);
-      if (error instanceof TypeError) {
-        throw new Error('Unable to connect to the server. Please check your connection and try again.');
+      return response.data;
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: UploadResponse } };
+        if (axiosError.response?.status === 409 && axiosError.response?.data) {
+          return {
+            ...axiosError.response.data,
+            is_duplicate: true,
+          };
+        }
       }
       throw error;
     }
