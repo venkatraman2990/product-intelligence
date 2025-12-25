@@ -77,6 +77,20 @@ CSS variables are defined in `frontend/src/index.css` for consistent theming.
 
 ## Recent Changes
 
+- 2024-12-25: Accelerant Logo and Dashboard Redesign
+  - Added Accelerant logo (blue/green bird icon + "ACCELERANT" text) to sidebar header
+  - Redesigned Dashboard to match reference design with "Welcome to your workspace" heading
+  - Added 4 stats cards row (Total Contracts, Total Fields, Extracted, Pending)
+  - Added 4 feature cards with icons, descriptions, and colored action buttons
+  - Updated sidebar navigation with chevron indicators and Admin section
+  - Notification bell and green avatar in header
+
+- 2024-12-25: Citation Preview Feature
+  - Added DocumentPreview modal component with text highlighting
+  - ResultsTable now shows quote icons next to fields with source citations
+  - Clicking citation opens modal showing exact document passage where value was found
+  - Updated extraction prompts to capture source text citations for each field
+
 - 2024-12-24: Fixed extraction status display
   - Updated ExtractionSummary to include full extraction data (started_at, completed_at, extracted_data, extraction_notes)
   - Contract detail page now properly shows completed extractions with all extracted fields

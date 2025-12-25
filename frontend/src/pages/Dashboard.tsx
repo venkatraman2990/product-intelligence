@@ -1,173 +1,165 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { FileText, Upload, Clock, CheckCircle, ChevronRight } from 'lucide-react';
+import { FileText, Upload, CheckCircle, Database, FileSpreadsheet, Download } from 'lucide-react';
 import { contractsApi } from '../api/client';
 
 export default function Dashboard() {
   const { data: contractsData, isLoading } = useQuery({
-    queryKey: ['contracts', 0, 10],
-    queryFn: () => contractsApi.list(0, 10),
+    queryKey: ['contracts', 0, 100],
+    queryFn: () => contractsApi.list(0, 100),
   });
+
+  const totalContracts = contractsData?.total || 0;
+  const extractedCount = 0;
 
   const stats = [
     {
       name: 'Total Contracts',
-      value: contractsData?.total || 0,
+      value: totalContracts,
+      description: 'Documents uploaded and ready for processing',
       icon: FileText,
-      bgColor: 'var(--accelerant-blue-light)',
-      iconColor: 'var(--accelerant-blue)',
+      bgColor: '#EEF2FF',
+      iconColor: '#3B82F6',
     },
     {
-      name: 'Ready for Extraction',
-      value: contractsData?.contracts?.filter((c) => !c.is_deleted).length || 0,
-      icon: Clock,
-      bgColor: '#FEF3C7',
-      iconColor: '#D97706',
+      name: 'Total Fields',
+      value: extractedCount > 0 ? extractedCount * 25 : 0,
+      description: 'Total extracted data fields across all contracts',
+      icon: Database,
+      bgColor: '#EEF2FF',
+      iconColor: '#3B82F6',
     },
     {
       name: 'Extracted',
-      value: 0,
+      value: extractedCount,
+      description: 'Contracts with completed extractions',
       icon: CheckCircle,
-      bgColor: 'var(--emerald-50)',
-      iconColor: 'var(--success-green)',
+      bgColor: '#ECFDF5',
+      iconColor: '#10B981',
+    },
+    {
+      name: 'Pending',
+      value: totalContracts - extractedCount,
+      description: 'Contracts awaiting extraction',
+      icon: Upload,
+      bgColor: '#FEF3C7',
+      iconColor: '#F59E0B',
+      badge: totalContracts - extractedCount > 0 ? 'Action Needed' : null,
     },
   ];
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  const features = [
+    {
+      name: 'Contracts',
+      description: 'Browse and manage uploaded contract documents.',
+      icon: FileText,
+      buttonText: 'View Contracts',
+      href: '/contracts',
+      buttonColor: '#10B981',
+    },
+    {
+      name: 'Upload Documents',
+      description: 'Upload new PDF or Word contracts for extraction.',
+      icon: Upload,
+      buttonText: 'Upload',
+      href: '/upload',
+      buttonColor: '#3B82F6',
+    },
+    {
+      name: 'Bulk Import',
+      description: 'Upload multiple contracts at once for batch processing.',
+      icon: Download,
+      buttonText: 'Import Contracts',
+      href: '/upload',
+      buttonColor: '#F59E0B',
+    },
+    {
+      name: 'Export Data',
+      description: 'Export extracted data to Excel or JSON formats.',
+      icon: FileSpreadsheet,
+      buttonText: 'Export',
+      href: '/contracts',
+      buttonColor: '#10B981',
+    },
+  ];
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="text-description mt-1">Contract extraction and intelligence</p>
-        </div>
-        <Link to="/upload" className="btn-primary">
-          <Upload className="h-4 w-4" />
-          Upload Contract
-        </Link>
+      <div>
+        <h1 
+          className="text-2xl font-semibold"
+          style={{ color: 'var(--slate-900)' }}
+        >
+          Welcome to your workspace
+        </h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {stats.map((stat) => (
-          <div key={stat.name} className="card flex items-center">
-            <div 
-              className="p-3 rounded-xl"
-              style={{ backgroundColor: stat.bgColor }}
-            >
-              <stat.icon className="h-6 w-6" style={{ color: stat.iconColor }} />
+          <div 
+            key={stat.name} 
+            className="bg-white rounded-xl p-5 border"
+            style={{ borderColor: 'var(--slate-200)' }}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--slate-600)' }}>
+                  {stat.name}
+                </p>
+                <p className="text-3xl font-bold mt-1" style={{ color: 'var(--slate-900)' }}>
+                  {isLoading ? '-' : stat.value}
+                </p>
+              </div>
+              <div 
+                className="p-2.5 rounded-xl"
+                style={{ backgroundColor: stat.bgColor }}
+              >
+                <stat.icon className="h-5 w-5" style={{ color: stat.iconColor }} />
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm" style={{ color: 'var(--slate-500)' }}>{stat.name}</p>
-              <p className="text-2xl font-semibold" style={{ color: 'var(--slate-900)' }}>
-                {isLoading ? '-' : stat.value}
-              </p>
-            </div>
+            <p className="text-xs mt-3" style={{ color: 'var(--slate-500)' }}>
+              {stat.description}
+            </p>
+            {stat.badge && (
+              <span 
+                className="inline-block mt-2 px-2 py-0.5 text-xs font-medium rounded"
+                style={{ backgroundColor: '#FEF3C7', color: '#D97706' }}
+              >
+                {stat.badge}
+              </span>
+            )}
           </div>
         ))}
       </div>
 
-      <div className="card" style={{ padding: 0 }}>
-        <div 
-          className="px-5 py-4 flex items-center justify-between border-b"
-          style={{ borderColor: 'var(--slate-200)' }}
-        >
-          <div className="flex items-center gap-3">
-            <h2 className="section-header">Recent Contracts</h2>
-            <span className="count-badge">{contractsData?.total || 0}</span>
-          </div>
-          <Link
-            to="/contracts"
-            className="text-sm font-medium flex items-center gap-1 hover:underline"
-            style={{ color: 'var(--accelerant-blue)' }}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        {features.map((feature) => (
+          <div 
+            key={feature.name}
+            className="bg-white rounded-xl p-6 border text-center"
+            style={{ borderColor: 'var(--slate-200)' }}
           >
-            View all
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
-
-        {isLoading ? (
-          <div className="px-6 py-12 text-center" style={{ color: 'var(--slate-500)' }}>
-            Loading...
-          </div>
-        ) : contractsData?.contracts?.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <FileText className="mx-auto h-12 w-12" style={{ color: 'var(--slate-300)' }} />
-            <p className="mt-2" style={{ color: 'var(--slate-500)' }}>No contracts uploaded yet</p>
-            <Link
-              to="/upload"
-              className="mt-4 inline-flex items-center text-sm font-medium"
-              style={{ color: 'var(--accelerant-blue)' }}
+            <div 
+              className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-4"
+              style={{ backgroundColor: `${feature.buttonColor}15` }}
             >
-              <Upload className="h-4 w-4 mr-1" />
-              Upload your first contract
+              <feature.icon className="h-6 w-6" style={{ color: feature.buttonColor }} />
+            </div>
+            <h3 className="font-semibold" style={{ color: 'var(--slate-900)' }}>
+              {feature.name}
+            </h3>
+            <p className="text-sm mt-2 mb-4" style={{ color: 'var(--slate-500)' }}>
+              {feature.description}
+            </p>
+            <Link
+              to={feature.href}
+              className="inline-block w-full py-2.5 px-4 rounded-full text-sm font-medium text-white transition-opacity hover:opacity-90"
+              style={{ backgroundColor: feature.buttonColor }}
+            >
+              {feature.buttonText}
             </Link>
           </div>
-        ) : (
-          <div className="overflow-hidden">
-            <table className="w-full">
-              <thead style={{ backgroundColor: 'var(--slate-50)' }}>
-                <tr>
-                  <th className="table-header text-left px-5 py-3">Document</th>
-                  <th className="table-header text-left px-5 py-3">Type</th>
-                  <th className="table-header text-left px-5 py-3">Size</th>
-                  <th className="table-header text-left px-5 py-3">Pages</th>
-                  <th className="table-header text-left px-5 py-3">Uploaded</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contractsData?.contracts?.slice(0, 5).map((contract) => (
-                  <tr 
-                    key={contract.id} 
-                    className="border-t transition-colors hover:bg-slate-50"
-                    style={{ borderColor: 'var(--slate-100)' }}
-                  >
-                    <td className="px-5 py-4">
-                      <Link
-                        to={`/contracts/${contract.id}`}
-                        className="flex items-center group"
-                      >
-                        <FileText className="h-5 w-5 transition-colors" style={{ color: 'var(--slate-400)' }} />
-                        <span 
-                          className="ml-3 text-sm font-medium group-hover:underline"
-                          style={{ color: 'var(--slate-900)' }}
-                        >
-                          {contract.original_filename}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="badge badge-internal">
-                        {contract.file_type.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
-                      {formatFileSize(contract.file_size_bytes)}
-                    </td>
-                    <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
-                      {contract.page_count || '-'}
-                    </td>
-                    <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
-                      {formatDate(contract.uploaded_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        ))}
       </div>
     </div>
   );
