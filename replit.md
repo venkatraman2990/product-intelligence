@@ -66,9 +66,9 @@ The application runs with two workflows:
 ## Accelerant Design System
 
 The frontend follows the Accelerant Design System with:
-- **Branding**: Accelerant full-color logo (hummingbird + text) in sidebar
-- **Primary Button Color**: Teal/Green (#22C55E)
-- **Secondary Button Color**: Coral (#F97066)
+- **Branding**: Accelerant full-color logo with transparent background in sidebar
+- **Primary Button Color**: Blue (#3B82F6)
+- **Secondary Button Color**: Green (#22C55E)
 - **Navy Text Color**: (#1E3A5F)
 - **Gray Palette**: Slate color scale (slate-50 through slate-900)
 - **Cards**: 12px border radius, 20px padding, white background with subtle border

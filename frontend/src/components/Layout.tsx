@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { FileText, Upload, BarChart3, Settings, ChevronRight } from 'lucide-react';
-import accelerantLogo from '../assets/accelerant-logo.jpg?url';
+import accelerantLogo from '../assets/accelerant-logo-transparent.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },

@@ -54,7 +54,7 @@ body {
 }
 
 .btn-primary {
-  background-color: var(--primary-teal);
+  background-color: var(--accelerant-blue);
   color: white;
   font-size: 14px;
   font-weight: 500;
@@ -70,7 +70,7 @@ body {
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-teal-hover);
+  background-color: var(--accelerant-blue-hover);
 }
 
 .btn-primary:disabled {
@@ -79,7 +79,7 @@ body {
 }
 
 .btn-secondary {
-  background-color: var(--secondary-coral);
+  background-color: var(--primary-teal);
   color: white;
   font-size: 14px;
   font-weight: 500;
@@ -95,7 +95,7 @@ body {
 }
 
 .btn-secondary:hover {
-  background-color: var(--secondary-coral-hover);
+  background-color: var(--primary-teal-hover);
 }
 
 .btn-outline {
