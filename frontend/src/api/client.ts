@@ -9,6 +9,10 @@ import type {
   UploadResponse,
   ExportRequest,
   ExportResponse,
+  MemberListResponse,
+  GWPTreeResponse,
+  MemberContractListResponse,
+  MemberContract,
 } from '../types';
 
 const API_BASE_URL = '';
@@ -138,6 +142,110 @@ export const exportsApi = {
 
   download: (filename: string): string => {
     return `${API_BASE_URL}/api/exports/${filename}/download`;
+  },
+};
+
+// Members endpoints
+export const membersApi = {
+  list: async (skip = 0, limit = 50, search?: string): Promise<MemberListResponse> => {
+    const response = await api.get('/api/members/', {
+      params: { skip, limit, search },
+    });
+    return response.data;
+  },
+
+  get: async (id: string): Promise<MemberListResponse['members'][0] & { gwp_breakdowns: unknown[] }> => {
+    const response = await api.get(`/api/members/${id}`);
+    return response.data;
+  },
+
+  getGWPTree: async (id: string): Promise<GWPTreeResponse> => {
+    const response = await api.get(`/api/members/${id}/gwp-tree`);
+    return response.data;
+  },
+
+  getContracts: async (id: string): Promise<MemberContractListResponse> => {
+    const response = await api.get(`/api/members/${id}/contracts`);
+    return response.data;
+  },
+
+  linkContract: async (memberId: string, contractId: string, versionNumber?: string): Promise<MemberContract> => {
+    const response = await api.post(`/api/members/${memberId}/contracts`, {
+      contract_id: contractId,
+      version_number: versionNumber || 'v1',
+    });
+    return response.data;
+  },
+
+  createNewVersion: async (
+    memberId: string,
+    oldContractId: string,
+    newContractId: string,
+    effectiveDate?: string
+  ): Promise<MemberContract> => {
+    const response = await api.post(
+      `/api/members/${memberId}/contracts/${oldContractId}/new-version`,
+      null,
+      { params: { new_contract_id: newContractId, effective_date: effectiveDate } }
+    );
+    return response.data;
+  },
+
+  getMembersForContract: async (contractId: string): Promise<{
+    members: Array<{
+      id: string;
+      member_id: string;
+      name: string;
+      link_id: string;
+      version_number: string;
+      is_current: boolean;
+    }>;
+    total: number;
+  }> => {
+    const response = await api.get(`/api/members/by-contract/${contractId}`);
+    return response.data;
+  },
+
+  getGWPBreakdowns: async (memberId: string): Promise<{
+    breakdowns: Array<{
+      id: string;
+      lob: { code: string; name: string };
+      cob: { code: string; name: string };
+      product: { code: string; name: string };
+      sub_product: { code: string; name: string };
+      mpp: { code: string; name: string };
+      total_gwp: string;
+    }>;
+  }> => {
+    const response = await api.get(`/api/members/${memberId}/gwp-tree`);
+    return response.data;
+  },
+
+  createTermMapping: async (data: {
+    extraction_id: string;
+    gwp_breakdown_id: string;
+    field_path: string;
+  }): Promise<unknown> => {
+    const response = await api.post('/api/members/term-mappings', data);
+    return response.data;
+  },
+
+  getTermMappingsForExtraction: async (extractionId: string): Promise<{
+    mappings: Array<{
+      id: string;
+      extraction_id: string;
+      gwp_breakdown_id: string;
+      field_path: string;
+    }>;
+    total: number;
+  }> => {
+    const response = await api.get(`/api/members/term-mappings/extraction/${extractionId}`);
+    return response.data;
+  },
+
+  unlinkContract: async (memberId: string, contractId: string): Promise<{ message: string }> => {
+    const response = await api.delete(`/api/members/${memberId}/contracts/${contractId}`);
+    return response.data;
   },
 };
 

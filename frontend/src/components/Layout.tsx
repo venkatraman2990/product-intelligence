@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { FileText, Upload, BarChart3, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Upload, BarChart3, Settings, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import accelerantLogo from '../assets/accelerant-logo-transparent.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Upload', href: '/upload', icon: Upload },
   { name: 'Contracts', href: '/contracts', icon: FileText },
+  { name: 'Members', href: '/members', icon: Users },
 ];
 
 export default function Layout() {

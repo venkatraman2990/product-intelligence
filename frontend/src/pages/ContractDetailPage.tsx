@@ -10,11 +10,17 @@ import {
   AlertCircle,
   Download,
   Clock,
+  Users,
+  Search,
+  Link as LinkIcon,
+  Tag,
+  X,
 } from 'lucide-react';
-import { contractsApi, extractionsApi, exportsApi } from '../api/client';
+import { contractsApi, extractionsApi, exportsApi, membersApi } from '../api/client';
 import ModelPicker from '../components/extraction/ModelPicker';
 import ResultsTable from '../components/results/ResultsTable';
-import type { Extraction } from '../types';
+import TermMapper from '../components/members/TermMapper';
+import type { Extraction, Member } from '../types';
 
 export default function ContractDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +34,9 @@ export default function ContractDetailPage() {
 
   const [activeExtraction, setActiveExtraction] = useState<string | null>(null);
   const [autoExtractTriggered, setAutoExtractTriggered] = useState(false);
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [showMemberSearch, setShowMemberSearch] = useState(false);
+  const [mappingExtraction, setMappingExtraction] = useState<Extraction | null>(null);
 
   const {
     data: contract,
@@ -45,6 +54,47 @@ export default function ContractDetailPage() {
     enabled: !!id,
     refetchInterval: activeExtraction ? 2000 : false,
   });
+
+  // Query for members linked to this contract
+  const { data: linkedMembers, refetch: refetchLinkedMembers } = useQuery({
+    queryKey: ['contractMembers', id],
+    queryFn: () => membersApi.getMembersForContract(id!),
+    enabled: !!id,
+  });
+
+  // Query for member search
+  const { data: memberSearchResults } = useQuery({
+    queryKey: ['memberSearch', memberSearchQuery],
+    queryFn: () => membersApi.list(0, 10, memberSearchQuery || undefined),
+    enabled: memberSearchQuery.length >= 2,
+  });
+
+  // Mutation to link contract to member
+  const linkMemberMutation = useMutation({
+    mutationFn: (memberId: string) => membersApi.linkContract(memberId, id!),
+    onSuccess: () => {
+      // Force invalidate and refetch to ensure UI updates
+      queryClient.invalidateQueries({ queryKey: ['contractMembers', id] });
+      queryClient.invalidateQueries({ queryKey: ['memberContracts'] });
+      setShowMemberSearch(false);
+      setMemberSearchQuery('');
+    },
+  });
+
+  // Mutation to unlink contract from member
+  const unlinkMemberMutation = useMutation({
+    mutationFn: (memberId: string) => membersApi.unlinkContract(memberId, id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contractMembers', id] });
+      queryClient.invalidateQueries({ queryKey: ['memberContracts'] });
+    },
+  });
+
+  const handleUnlinkMember = (memberId: string) => {
+    if (confirm('Are you sure you want to unlink this member?')) {
+      unlinkMemberMutation.mutate(memberId);
+    }
+  };
 
   const startExtractionMutation = useMutation({
     mutationFn: ({
@@ -246,6 +296,137 @@ export default function ContractDetailPage() {
               )}
             </button>
           </div>
+
+          {/* Member Classification */}
+          <div className="card">
+            <h3 className="card-title mb-4 flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Classify to Member
+            </h3>
+
+            {/* Linked Members */}
+            {linkedMembers?.members && linkedMembers.members.length > 0 ? (
+              <div className="space-y-2 mb-4">
+                <p className="text-xs font-medium" style={{ color: 'var(--slate-500)' }}>
+                  Linked to:
+                </p>
+                {linkedMembers.members.map((member) => (
+                  <div
+                    key={member.link_id}
+                    className="flex items-center justify-between p-2 rounded-lg border"
+                    style={{ borderColor: 'var(--slate-200)' }}
+                  >
+                    <Link
+                      to={`/members/${member.id}`}
+                      className="flex items-center gap-2 flex-1 hover:opacity-80 transition-opacity"
+                    >
+                      <Users className="h-4 w-4" style={{ color: 'var(--slate-400)' }} />
+                      <div>
+                        <p className="text-sm font-medium" style={{ color: 'var(--slate-900)' }}>
+                          {member.name}
+                        </p>
+                        <p className="text-xs" style={{ color: 'var(--slate-500)' }}>
+                          {member.member_id}
+                        </p>
+                      </div>
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      <span className="badge bg-green-100 text-green-700 text-xs">
+                        {member.version_number}
+                      </span>
+                      <button
+                        onClick={() => handleUnlinkMember(member.id)}
+                        className="p-1 hover:bg-red-100 rounded transition-colors"
+                        title="Unlink member"
+                      >
+                        <X className="h-4 w-4 text-red-500" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm mb-4" style={{ color: 'var(--slate-500)' }}>
+                No member linked yet. Search to classify this contract.
+              </p>
+            )}
+
+            {/* Search toggle */}
+            {!showMemberSearch ? (
+              <button
+                onClick={() => setShowMemberSearch(true)}
+                className="btn-secondary w-full"
+              >
+                <Search className="h-4 w-4" />
+                {linkedMembers?.members?.length ? 'Link to Another Member' : 'Search Members'}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search
+                    className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+                    style={{ color: 'var(--slate-400)' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search by name or ID..."
+                    value={memberSearchQuery}
+                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                    className="search-input pl-9 w-full text-sm"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Search Results */}
+                {memberSearchQuery.length >= 2 && memberSearchResults?.members && (
+                  <div
+                    className="max-h-48 overflow-y-auto border rounded-lg divide-y"
+                    style={{ borderColor: 'var(--slate-200)' }}
+                  >
+                    {memberSearchResults.members.length === 0 ? (
+                      <p className="p-3 text-sm text-center" style={{ color: 'var(--slate-500)' }}>
+                        No members found
+                      </p>
+                    ) : (
+                      memberSearchResults.members.map((member: Member) => (
+                        <button
+                          key={member.id}
+                          onClick={() => linkMemberMutation.mutate(member.id)}
+                          disabled={linkMemberMutation.isPending}
+                          className="w-full p-2 text-left hover:bg-slate-50 flex items-center justify-between transition-colors"
+                        >
+                          <div>
+                            <p className="text-sm font-medium" style={{ color: 'var(--slate-900)' }}>
+                              {member.name}
+                            </p>
+                            <p className="text-xs" style={{ color: 'var(--slate-500)' }}>
+                              {member.member_id}
+                            </p>
+                          </div>
+                          {linkMemberMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <LinkIcon className="h-4 w-4" style={{ color: 'var(--slate-400)' }} />
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    setShowMemberSearch(false);
+                    setMemberSearchQuery('');
+                  }}
+                  className="text-sm w-full text-center py-1"
+                  style={{ color: 'var(--slate-500)' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="lg:col-span-2 space-y-6">
@@ -281,6 +462,16 @@ export default function ContractDetailPage() {
                   </div>
                   {extraction.status === 'completed' && (
                     <div className="flex items-center gap-2">
+                      {linkedMembers?.members && linkedMembers.members.length > 0 && (
+                        <button
+                          onClick={() => setMappingExtraction(extraction)}
+                          className="btn-secondary text-sm py-1.5 px-3"
+                          style={{ backgroundColor: 'var(--accelerant-blue)', color: 'white', borderColor: 'var(--accelerant-blue)' }}
+                        >
+                          <Tag className="h-4 w-4" />
+                          Map to Products
+                        </button>
+                      )}
                       <button
                         onClick={() => handleExport(extraction.id, 'xlsx')}
                         className="btn-secondary text-sm py-1.5 px-3"
@@ -331,6 +522,17 @@ export default function ContractDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Term Mapping Modal */}
+      {mappingExtraction && linkedMembers?.members?.[0] && (
+        <TermMapper
+          extractionId={mappingExtraction.id}
+          extractedData={mappingExtraction.extracted_data}
+          memberId={linkedMembers.members[0].id}
+          memberName={linkedMembers.members[0].name}
+          onClose={() => setMappingExtraction(null)}
+        />
+      )}
     </div>
   );
 }

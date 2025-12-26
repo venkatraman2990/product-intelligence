@@ -96,3 +96,54 @@ export interface ExportResponse {
   extraction_count: number;
   download_url: string;
 }
+
+// Member types
+export interface Member {
+  id: string;
+  member_id: string;
+  name: string;
+  total_gwp: string;
+  gwp_row_count: number;
+  contract_count: number;
+}
+
+export interface MemberListResponse {
+  members: Member[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+export interface GWPTreeNode {
+  id: string;
+  code: string;
+  name: string;
+  level: 'lob' | 'cob' | 'product' | 'sub_product' | 'mpp';
+  total_gwp: string;
+  children: GWPTreeNode[];
+  gwp_breakdown_ids?: string[];
+}
+
+export interface GWPTreeResponse {
+  member_id: string;
+  member_name: string;
+  total_gwp: string;
+  tree: GWPTreeNode[];
+}
+
+export interface MemberContract {
+  id: string;
+  member_id: string;
+  contract_id: string;
+  version_number: string;
+  is_current: boolean;
+  effective_date: string | null;
+  created_at: string;
+  contract_filename: string | null;
+  contract_file_type: string | null;
+}
+
+export interface MemberContractListResponse {
+  contracts: MemberContract[];
+  total: number;
+}

@@ -6,6 +6,8 @@ import UploadPage from './pages/UploadPage';
 import ContractsPage from './pages/ContractsPage';
 import ContractDetailPage from './pages/ContractDetailPage';
 import ExtractionDetailPage from './pages/ExtractionDetailPage';
+import MembersPage from './pages/MembersPage';
+import MemberDetailPage from './pages/MemberDetailPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +29,8 @@ function App() {
             <Route path="contracts" element={<ContractsPage />} />
             <Route path="contracts/:id" element={<ContractDetailPage />} />
             <Route path="extractions/:id" element={<ExtractionDetailPage />} />
+            <Route path="members" element={<MembersPage />} />
+            <Route path="members/:id" element={<MemberDetailPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
