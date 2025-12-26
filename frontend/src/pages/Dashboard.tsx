@@ -9,6 +9,12 @@ export default function Dashboard() {
     queryFn: () => contractsApi.list(0, 10),
   });
 
+  // Calculate stats from contracts data
+  const extractedCount = contractsData?.contracts?.filter(
+    (c) => c.extraction_count > 0
+  ).length || 0;
+  const readyCount = (contractsData?.total || 0) - extractedCount;
+
   const stats = [
     {
       name: 'Total Contracts',
@@ -19,14 +25,14 @@ export default function Dashboard() {
     },
     {
       name: 'Ready for Extraction',
-      value: contractsData?.contracts?.filter((c) => !c.is_deleted).length || 0,
+      value: readyCount,
       icon: Clock,
       bgColor: '#FEF3C7',
       iconColor: '#D97706',
     },
     {
       name: 'Extracted',
-      value: 0,
+      value: extractedCount,
       icon: CheckCircle,
       bgColor: 'var(--emerald-50)',
       iconColor: 'var(--success-green)',

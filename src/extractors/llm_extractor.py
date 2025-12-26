@@ -318,6 +318,8 @@ class LLMExtractor(BaseExtractor):
         citations = extraction.get("citations", {})
         if not isinstance(citations, dict):
             citations = {}
+        # Filter out None values - some models return null for missing citations
+        citations = {k: v for k, v in citations.items() if v is not None and isinstance(v, str)}
 
         return ContractData(
             metadata=metadata,

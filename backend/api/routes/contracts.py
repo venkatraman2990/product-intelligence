@@ -18,6 +18,7 @@ from backend.models.contract import Contract
 from backend.models.extraction import Extraction
 from backend.schemas.contract import (
     ContractListItem,
+    ContractListResponse,
     ContractDetail,
     DocumentPreview,
     UploadResponse,
@@ -157,7 +158,7 @@ async def upload_contract(
     )
 
 
-@router.get("/", response_model=list[ContractListItem])
+@router.get("/", response_model=ContractListResponse)
 async def list_contracts(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
@@ -171,6 +172,9 @@ async def list_contracts(
         query = query.filter(
             Contract.original_filename.ilike(f"%{search}%")
         )
+
+    # Get total count before pagination
+    total = query.count()
 
     contracts = query.order_by(Contract.uploaded_at.desc()).offset(skip).limit(limit).all()
 
@@ -196,7 +200,12 @@ async def list_contracts(
             latest_extraction_status=latest_extraction.status if latest_extraction else None,
         ))
 
-    return result
+    return ContractListResponse(
+        contracts=result,
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/{contract_id}/preview", response_model=DocumentPreview)

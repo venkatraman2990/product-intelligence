@@ -22,6 +22,12 @@ interface DocumentViewerProps {
   onClose: () => void;
 }
 
+interface HighlightRange {
+  start: number;
+  end: number;
+  matchedText: string;
+}
+
 export default function DocumentViewer({
   contractId,
   citation,
@@ -34,11 +40,13 @@ export default function DocumentViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
-  const [highlightedText, setHighlightedText] = useState<string>('');
   const [pageTexts, setPageTexts] = useState<string[]>([]);
   const [matchPage, setMatchPage] = useState<number | null>(null);
+  const [pageHighlightRange, setPageHighlightRange] = useState<HighlightRange | null>(null);
+  const [shouldScroll, setShouldScroll] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const textPositionRef = useRef<number>(0);
 
   const pdfUrl = `/api/contracts/${contractId}/pdf`;
 
@@ -47,16 +55,13 @@ export default function DocumentViewer({
     if (citation && documentText) {
       const match = findBestMatch(citation, documentText);
       setMatchResult(match);
-      if (match) {
-        setHighlightedText(match.matchedText);
-      }
     }
   }, [citation, documentText]);
 
   // Extract text from all pages for page-aware matching
   const onDocumentLoadSuccess = useCallback(async (pdf: { numPages: number }) => {
     setNumPages(pdf.numPages);
-    setIsLoading(false);
+    // Don't set isLoading false yet - wait until we find the match page
 
     // Extract text from each page
     const texts: string[] = [];
@@ -74,17 +79,28 @@ export default function DocumentViewer({
     }
     setPageTexts(texts);
 
-    // Find which page contains the match
+    // Find which page contains the match and compute highlight range
+    let foundMatch = false;
     if (citation) {
       for (let i = 0; i < texts.length; i++) {
         const match = findBestMatch(citation, texts[i]);
         if (match && match.score >= 0.5) {
           setMatchPage(i + 1);
           setCurrentPage(i + 1);
+          setPageHighlightRange({
+            start: match.start,
+            end: match.end,
+            matchedText: match.matchedText,
+          });
+          setShouldScroll(true);
+          foundMatch = true;
           break;
         }
       }
     }
+
+    // Now that page is set correctly, allow render
+    setIsLoading(false);
   }, [citation]);
 
   const onDocumentLoadError = useCallback((error: Error) => {
@@ -129,43 +145,77 @@ export default function DocumentViewer({
   }, [onClose, numPages]);
 
   // Scroll to highlighted text after page renders
-  useEffect(() => {
-    if (!isLoading && currentPage === matchPage && highlightedText) {
-      // Small delay to ensure text layer is rendered
-      const timer = setTimeout(() => {
+  const onPageRenderSuccess = useCallback(() => {
+    if (shouldScroll && currentPage === matchPage) {
+      // Use requestAnimationFrame to ensure DOM is fully rendered
+      requestAnimationFrame(() => {
         const container = containerRef.current;
         if (container) {
-          const marks = container.querySelectorAll('mark');
-          if (marks.length > 0) {
-            marks[0].scrollIntoView({
+          const firstMark = container.querySelector('mark[data-citation-start="true"]');
+          if (firstMark) {
+            firstMark.scrollIntoView({
               behavior: 'smooth',
-              block: 'center'
+              block: 'center',
             });
+            setShouldScroll(false);
           }
         }
-      }, 500);
-      return () => clearTimeout(timer);
+      });
     }
-  }, [isLoading, currentPage, matchPage, highlightedText]);
+    // Reset text position for next render
+    textPositionRef.current = 0;
+  }, [shouldScroll, currentPage, matchPage]);
 
-  // Custom text renderer for highlighting
+  // Custom text renderer for highlighting - tracks position to highlight exact range
   const customTextRenderer = useCallback(
     (textItem: { str: string }) => {
-      if (!highlightedText || !textItem.str) return textItem.str;
-
-      const text = textItem.str;
-      const highlightLower = highlightedText.toLowerCase();
-      const textLower = text.toLowerCase();
-
-      // Check if this text item contains part of the highlighted text
-      if (highlightLower.includes(textLower) || textLower.includes(highlightLower.substring(0, 20))) {
-        return `<mark style="background-color: #FEF08A; padding: 2px 0;">${text}</mark>`;
+      if (!pageHighlightRange || !textItem.str || currentPage !== matchPage) {
+        return textItem.str;
       }
 
-      return text;
+      const text = textItem.str;
+      const textStart = textPositionRef.current;
+      const textEnd = textStart + text.length;
+
+      // Update position for next text item (including space separator)
+      textPositionRef.current = textEnd + 1;
+
+      const { start: highlightStart, end: highlightEnd } = pageHighlightRange;
+
+      // Check if this text item overlaps with the highlight range
+      if (textEnd <= highlightStart || textStart >= highlightEnd) {
+        // No overlap
+        return text;
+      }
+
+      // Calculate overlap
+      const overlapStart = Math.max(0, highlightStart - textStart);
+      const overlapEnd = Math.min(text.length, highlightEnd - textStart);
+
+      // Determine if this is the first highlighted element
+      const isFirstHighlight = textStart <= highlightStart && textEnd > highlightStart;
+
+      if (overlapStart === 0 && overlapEnd === text.length) {
+        // Entire text item is highlighted
+        const dataAttr = isFirstHighlight ? ' data-citation-start="true"' : '';
+        return `<mark class="citation-highlight"${dataAttr}>${text}</mark>`;
+      }
+
+      // Partial highlight - split the text
+      const before = text.substring(0, overlapStart);
+      const highlighted = text.substring(overlapStart, overlapEnd);
+      const after = text.substring(overlapEnd);
+      const dataAttr = isFirstHighlight ? ' data-citation-start="true"' : '';
+
+      return `${before}<mark class="citation-highlight"${dataAttr}>${highlighted}</mark>${after}`;
     },
-    [highlightedText]
+    [pageHighlightRange, currentPage, matchPage]
   );
+
+  // Reset text position when page changes
+  useEffect(() => {
+    textPositionRef.current = 0;
+  }, [currentPage]);
 
   return (
     <div
@@ -322,6 +372,7 @@ export default function DocumentViewer({
                 renderTextLayer={true}
                 renderAnnotationLayer={true}
                 customTextRenderer={customTextRenderer}
+                onRenderSuccess={onPageRenderSuccess}
                 className="shadow-2xl"
               />
             </Document>

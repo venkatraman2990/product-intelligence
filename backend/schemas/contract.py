@@ -45,6 +45,15 @@ class ContractListItem(BaseModel):
         from_attributes = True
 
 
+class ContractListResponse(BaseModel):
+    """Paginated contract list response."""
+
+    contracts: list[ContractListItem]
+    total: int
+    skip: int
+    limit: int
+
+
 class ContractDetail(BaseModel):
     """Detailed contract information."""
 
