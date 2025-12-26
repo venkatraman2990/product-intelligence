@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Code, Table, Copy, Check, Quote } from 'lucide-react';
-import DocumentPreview from './DocumentPreview';
+import DocumentViewer from './DocumentViewer';
 
 interface ResultsTableProps {
   data: Record<string, unknown>;
   notes?: string[];
   documentText?: string;
+  contractId?: string;
 }
 
 const fieldCategories: Record<string, string[]> = {
@@ -39,7 +40,7 @@ const fieldCategories: Record<string, string[]> = {
   ],
 };
 
-export default function ResultsTable({ data, notes = [], documentText = '' }: ResultsTableProps) {
+export default function ResultsTable({ data, notes = [], documentText = '', contractId = '' }: ResultsTableProps) {
   const [viewMode, setViewMode] = useState<'table' | 'json'>('table');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(['Metadata', 'Territory', 'Coverage'])
@@ -319,13 +320,14 @@ export default function ResultsTable({ data, notes = [], documentText = '' }: Re
         </div>
       )}
 
-      <DocumentPreview
-        isOpen={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        documentText={documentText}
-        highlightText={previewCitation}
-        fieldName={previewField}
-      />
+      {previewOpen && contractId && (
+        <DocumentViewer
+          contractId={contractId}
+          citation={previewCitation}
+          documentText={documentText}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 }

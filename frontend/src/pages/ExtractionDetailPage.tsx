@@ -184,6 +184,7 @@ export default function ExtractionDetailPage() {
           data={extraction.extracted_data}
           notes={extraction.extraction_notes}
           documentText={contract?.extracted_text || ''}
+          contractId={extraction.contract_id}
         />
       )}
     </div>

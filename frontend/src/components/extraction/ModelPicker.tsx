@@ -7,6 +7,7 @@ import type { ExtractionModel } from '../../types';
 interface ModelPickerProps {
   onSelect: (provider: string, model: string) => void;
   disabled?: boolean;
+  initialModel?: { provider: string; model: string } | null;
 }
 
 const providerLabels: Record<string, string> = {
@@ -15,9 +16,9 @@ const providerLabels: Record<string, string> = {
   landing_ai: 'Landing AI',
 };
 
-export default function ModelPicker({ onSelect, disabled = false }: ModelPickerProps) {
-  const [selectedProvider, setSelectedProvider] = useState<string>('anthropic');
-  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+export default function ModelPicker({ onSelect, disabled = false, initialModel = null }: ModelPickerProps) {
+  const [selectedProvider, setSelectedProvider] = useState<string>(initialModel?.provider || 'anthropic');
+  const [selectedModel, setSelectedModel] = useState<string | null>(initialModel?.model || null);
   const [showMoreModels, setShowMoreModels] = useState(false);
 
   const { data: pickerData, isLoading: isPickerLoading, error: pickerError } = useQuery({
@@ -33,6 +34,9 @@ export default function ModelPicker({ onSelect, disabled = false }: ModelPickerP
   });
 
   useEffect(() => {
+    // Skip auto-select if an initial model was provided
+    if (initialModel) return;
+
     if (selectedProvider === 'anthropic' && anthropicData?.is_configured) {
       const defaultModel = anthropicData.featured_models.find(m => m.family === 'sonnet');
       if (defaultModel && !selectedModel) {
@@ -52,7 +56,7 @@ export default function ModelPicker({ onSelect, disabled = false }: ModelPickerP
         onSelect(selectedProvider, configuredModel.model_name);
       }
     }
-  }, [pickerData, anthropicData, selectedProvider, onSelect, selectedModel]);
+  }, [pickerData, anthropicData, selectedProvider, onSelect, selectedModel, initialModel]);
 
   const handleProviderChange = (provider: string) => {
     setSelectedProvider(provider);

@@ -250,3 +250,23 @@ body {
   padding: 2px 8px;
   border-radius: 9999px;
 }
+
+/* React-PDF styles */
+.react-pdf__Page {
+  margin: 0 auto;
+  background: white !important;
+}
+
+.react-pdf__Page__textContent {
+  user-select: text;
+}
+
+.react-pdf__Page__textContent mark {
+  background-color: #FEF08A !important;
+  color: #854D0E !important;
+  padding: 2px 0;
+}
+
+.react-pdf__Page__annotations {
+  pointer-events: none;
+}

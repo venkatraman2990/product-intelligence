@@ -27,6 +27,7 @@ export default function ContractDetailPage() {
   } | null>(location.state?.selectedModel || null);
 
   const [activeExtraction, setActiveExtraction] = useState<string | null>(null);
+  const [autoExtractTriggered, setAutoExtractTriggered] = useState(false);
 
   const {
     data: contract,
@@ -70,6 +71,27 @@ export default function ContractDetailPage() {
       }
     }
   }, [extractions, activeExtraction, queryClient, id]);
+
+  // Auto-start extraction when navigating from UploadPage with a pre-selected model
+  useEffect(() => {
+    if (
+      location.state?.selectedModel &&
+      contract &&
+      extractions !== undefined &&
+      extractions.length === 0 &&
+      !autoExtractTriggered &&
+      !activeExtraction &&
+      !startExtractionMutation.isPending &&
+      selectedModel
+    ) {
+      setAutoExtractTriggered(true);
+      startExtractionMutation.mutate({
+        contractId: id!,
+        provider: selectedModel.provider,
+        model: selectedModel.model,
+      });
+    }
+  }, [contract, extractions, location.state, autoExtractTriggered, activeExtraction, startExtractionMutation, selectedModel, id]);
 
   const handleModelSelect = useCallback((provider: string, model: string) => {
     setSelectedModel({ provider, model });
@@ -200,6 +222,7 @@ export default function ContractDetailPage() {
             <ModelPicker
               onSelect={handleModelSelect}
               disabled={startExtractionMutation.isPending || !!activeExtraction}
+              initialModel={selectedModel}
             />
             <button
               onClick={handleStartExtraction}
@@ -299,6 +322,7 @@ export default function ContractDetailPage() {
                       data={extraction.extracted_data}
                       notes={extraction.extraction_notes}
                       documentText={contract.extracted_text || ''}
+                      contractId={id}
                     />
                   </div>
                 )}

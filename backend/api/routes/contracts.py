@@ -199,38 +199,6 @@ async def list_contracts(
     return result
 
 
-@router.get("/{contract_id}", response_model=ContractDetail)
-async def get_contract(
-    contract_id: str,
-    db: Session = Depends(get_db)
-):
-    """Get contract details."""
-    contract = db.query(Contract).filter(
-        Contract.id == contract_id,
-        Contract.is_deleted == False
-    ).first()
-
-    if not contract:
-        raise HTTPException(status_code=404, detail="Contract not found")
-
-    text_preview = contract.extracted_text[:1000] if contract.extracted_text else None
-
-    return ContractDetail(
-        id=contract.id,
-        filename=contract.filename,
-        original_filename=contract.original_filename,
-        file_type=contract.file_type,
-        file_size_bytes=contract.file_size_bytes,
-        file_hash=contract.file_hash,
-        page_count=contract.page_count,
-        document_metadata=contract.document_metadata or {},
-        uploaded_at=contract.uploaded_at,
-        updated_at=contract.updated_at,
-        text_preview=text_preview,
-        extracted_text=contract.extracted_text,
-    )
-
-
 @router.get("/{contract_id}/preview", response_model=DocumentPreview)
 async def get_contract_preview(
     contract_id: str,
@@ -298,6 +266,119 @@ async def download_contract(
         path=file_path,
         filename=contract.original_filename,
         media_type="application/octet-stream"
+    )
+
+
+@router.get("/{contract_id}/pdf")
+async def get_contract_pdf(
+    contract_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get contract as PDF for viewing.
+    - For PDF files: Returns the original file
+    - For DOCX files: Converts to PDF and returns it (cached)
+    """
+    contract = db.query(Contract).filter(
+        Contract.id == contract_id,
+        Contract.is_deleted == False
+    ).first()
+
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+
+    file_path = Path(contract.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    # If already PDF, return directly
+    if contract.file_type.lower() == "pdf":
+        return FileResponse(
+            path=file_path,
+            media_type="application/pdf",
+            filename=f"{Path(contract.original_filename).stem}.pdf"
+        )
+
+    # For DOCX/DOC files, convert to PDF
+    pdf_cache_dir = UPLOADS_DIR / "pdf_cache"
+    pdf_cache_dir.mkdir(exist_ok=True)
+    cached_pdf_path = pdf_cache_dir / f"{contract.id}.pdf"
+
+    # Check if cached PDF exists
+    if cached_pdf_path.exists():
+        return FileResponse(
+            path=cached_pdf_path,
+            media_type="application/pdf",
+            filename=f"{Path(contract.original_filename).stem}.pdf"
+        )
+
+    # Convert DOCX to PDF
+    try:
+        from docx2pdf import convert
+        convert(str(file_path), str(cached_pdf_path))
+    except ImportError:
+        # Fallback: try using LibreOffice if docx2pdf not available
+        import subprocess
+        try:
+            subprocess.run([
+                "soffice", "--headless", "--convert-to", "pdf",
+                "--outdir", str(pdf_cache_dir),
+                str(file_path)
+            ], check=True, capture_output=True)
+            # LibreOffice names the output file based on input filename
+            libreoffice_output = pdf_cache_dir / f"{file_path.stem}.pdf"
+            if libreoffice_output.exists():
+                libreoffice_output.rename(cached_pdf_path)
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            raise HTTPException(
+                status_code=500,
+                detail="PDF conversion failed. Please install docx2pdf or LibreOffice."
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF conversion failed: {str(e)}"
+        )
+
+    if not cached_pdf_path.exists():
+        raise HTTPException(status_code=500, detail="PDF conversion failed")
+
+    return FileResponse(
+        path=cached_pdf_path,
+        media_type="application/pdf",
+        filename=f"{Path(contract.original_filename).stem}.pdf"
+    )
+
+
+@router.get("/{contract_id}", response_model=ContractDetail)
+async def get_contract(
+    contract_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get contract details."""
+    contract = db.query(Contract).filter(
+        Contract.id == contract_id,
+        Contract.is_deleted == False
+    ).first()
+
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract not found")
+
+    text_preview = contract.extracted_text[:1000] if contract.extracted_text else None
+
+    return ContractDetail(
+        id=contract.id,
+        filename=contract.filename,
+        original_filename=contract.original_filename,
+        file_type=contract.file_type,
+        file_size_bytes=contract.file_size_bytes,
+        file_hash=contract.file_hash,
+        page_count=contract.page_count,
+        document_metadata=contract.document_metadata or {},
+        uploaded_at=contract.uploaded_at,
+        updated_at=contract.updated_at,
+        text_preview=text_preview,
+        extracted_text=contract.extracted_text,
     )
 
 

@@ -44,3 +44,6 @@ sqlalchemy
 uvicorn
 requests
 httpx
+
+# PDF conversion (DOCX to PDF)
+docx2pdf>=0.1.8
