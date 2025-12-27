@@ -16,8 +16,19 @@ router = APIRouter()
 
 MODEL_DESCRIPTIONS = {
     "opus": "Most capable for complex work",
-    "sonnet": "Best for everyday tasks", 
+    "sonnet": "Best for everyday tasks",
     "haiku": "Fastest for quick answers",
+}
+
+OPENAI_MODEL_DESCRIPTIONS = {
+    "gpt-4o": "Most capable multimodal model",
+    "gpt-4o-mini": "Fast and affordable",
+    "o1": "Advanced reasoning capabilities",
+    "o1-mini": "Fast reasoning model",
+    "o3-mini": "Latest compact reasoning",
+    "gpt-4-turbo": "High capability with vision",
+    "gpt-4": "Strong general performance",
+    "gpt-3.5-turbo": "Fast and cost-effective",
 }
 
 def get_model_family(model_id: str) -> Optional[str]:
@@ -38,6 +49,68 @@ def get_model_version(display_name: str) -> str:
         if part.replace('.', '').isdigit():
             return part
     return ""
+
+
+def get_openai_model_family(model_id: str) -> Optional[str]:
+    """Extract the model family from OpenAI model ID."""
+    model_lower = model_id.lower()
+
+    # Check for reasoning models first (o1, o3)
+    if model_lower.startswith("o3"):
+        return "o3"
+    if model_lower.startswith("o1"):
+        return "o1"
+
+    # GPT-4o variants (gpt-4o, gpt-4o-mini)
+    if "gpt-4o-mini" in model_lower:
+        return "gpt-4o-mini"
+    if "gpt-4o" in model_lower:
+        return "gpt-4o"
+
+    # GPT-4 turbo
+    if "gpt-4-turbo" in model_lower:
+        return "gpt-4-turbo"
+
+    # Original GPT-4
+    if model_lower.startswith("gpt-4"):
+        return "gpt-4"
+
+    # GPT-3.5
+    if "gpt-3.5" in model_lower:
+        return "gpt-3.5-turbo"
+
+    return None
+
+
+def get_openai_family_priority(family: str) -> int:
+    """Return priority for OpenAI model families (higher = more prominent)."""
+    priorities = {
+        "gpt-4o": 100,
+        "gpt-4o-mini": 90,
+        "o1": 85,
+        "o3": 80,
+        "gpt-4-turbo": 70,
+        "gpt-4": 60,
+        "gpt-3.5-turbo": 50,
+        "o1-mini": 45,
+    }
+    return priorities.get(family, 0)
+
+
+def is_openai_chat_model(model_id: str) -> bool:
+    """Check if model ID is a chat completion model we should show."""
+    model_lower = model_id.lower()
+    # Include GPT models and reasoning models
+    if any(prefix in model_lower for prefix in ["gpt-4", "gpt-3.5", "o1", "o3"]):
+        # Exclude specialized variants that aren't standard chat models
+        exclude_patterns = [
+            "instruct", "embedding", "audio", "realtime", "tts", "whisper", "dall-e",
+            "transcribe", "diarize", "search", "deep-research", "-pro"
+        ]
+        if not any(pattern in model_lower for pattern in exclude_patterns):
+            return True
+    return False
+
 
 # Default models configuration
 DEFAULT_MODELS = [
@@ -282,3 +355,98 @@ async def get_anthropic_models():
         raise HTTPException(status_code=e.response.status_code, detail="Failed to fetch Anthropic models")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching models: {str(e)}")
+
+
+@router.get("/openai")
+async def get_openai_models():
+    """Fetch available OpenAI models from OpenAI API dynamically."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    is_configured = bool(api_key)
+
+    if not is_configured:
+        return {
+            "is_configured": False,
+            "featured_models": [],
+            "other_models": [],
+        }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.openai.com/v1/models",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                },
+                timeout=10.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        models_data = data.get("data", [])
+
+        # Group models by family
+        models_by_family: dict[str, list] = {}
+
+        for model in models_data:
+            model_id = model.get("id", "")
+
+            # Only include chat completion models
+            if not is_openai_chat_model(model_id):
+                continue
+
+            family = get_openai_model_family(model_id)
+            if not family:
+                continue
+
+            created = model.get("created", 0)
+
+            model_info = {
+                "id": model_id,
+                "display_name": model_id,  # OpenAI uses ID as display name
+                "family": family,
+                "created": created,
+                "description": OPENAI_MODEL_DESCRIPTIONS.get(family, ""),
+            }
+
+            if family not in models_by_family:
+                models_by_family[family] = []
+            models_by_family[family].append(model_info)
+
+        # Sort each family by created date (newest first)
+        for family in models_by_family:
+            models_by_family[family].sort(key=lambda x: x.get("created", 0), reverse=True)
+
+        # Featured families (in priority order)
+        featured_families = ["gpt-4o", "gpt-4o-mini", "o1", "o3"]
+
+        featured_models = []
+        other_models = []
+
+        # Pick latest from each featured family
+        for family in featured_families:
+            if family in models_by_family and models_by_family[family]:
+                latest = models_by_family[family][0]
+                featured_models.append(latest)
+                # Add older versions to other_models
+                other_models.extend(models_by_family[family][1:])
+
+        # Add remaining families to other_models
+        for family, models in models_by_family.items():
+            if family not in featured_families:
+                other_models.extend(models)
+
+        # Sort other_models by family priority then created date
+        other_models.sort(
+            key=lambda x: (-get_openai_family_priority(x.get("family", "")), -x.get("created", 0))
+        )
+
+        return {
+            "is_configured": True,
+            "featured_models": featured_models,
+            "other_models": other_models,
+        }
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail="Failed to fetch OpenAI models")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching OpenAI models: {str(e)}")

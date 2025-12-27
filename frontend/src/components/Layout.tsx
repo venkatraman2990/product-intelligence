@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { FileText, Upload, BarChart3, Settings, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { FileText, Upload, BarChart3, Settings, ChevronLeft, ChevronRight, Users, Shield, MessageSquare } from 'lucide-react';
 import accelerantLogo from '../assets/accelerant-logo-transparent.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Members', href: '/members', icon: Users },
+  { name: 'Authorities', href: '/authorities', icon: Shield },
   { name: 'Upload', href: '/upload', icon: Upload },
   { name: 'Contracts', href: '/contracts', icon: FileText },
 ];
@@ -72,16 +73,30 @@ export default function Layout() {
                 <Settings className="h-5 w-5 mr-3" />
                 Settings
               </Link>
+              <Link
+                to="/system-prompts"
+                className={`sidebar-item ${location.pathname === '/system-prompts' ? 'active' : ''}`}
+              >
+                <MessageSquare className="h-5 w-5 mr-3" />
+                System Prompts
+              </Link>
             </div>
           )}
           {sidebarCollapsed && (
-            <div className="mt-10">
+            <div className="mt-10 space-y-1">
               <Link
                 to="/settings"
                 className={`sidebar-item justify-center ${location.pathname === '/settings' ? 'active' : ''}`}
                 title="Settings"
               >
                 <Settings className="h-5 w-5" />
+              </Link>
+              <Link
+                to="/system-prompts"
+                className={`sidebar-item justify-center ${location.pathname === '/system-prompts' ? 'active' : ''}`}
+                title="System Prompts"
+              >
+                <MessageSquare className="h-5 w-5" />
               </Link>
             </div>
           )}

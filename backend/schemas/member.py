@@ -293,5 +293,248 @@ class TermMappingSuggestResponse(BaseModel):
     mappings_created: int = 0
 
 
+# =============================================================================
+# CONTRACT-PRODUCT LINK SCHEMAS (NEW)
+# =============================================================================
+
+class ProductInfo(BaseModel):
+    """Product hierarchy information for display."""
+    id: str
+    lob: dict  # {code, name}
+    cob: dict  # {code, name}
+    product: dict  # {code, name}
+    sub_product: dict  # {code, name}
+    mpp: dict  # {code, name}
+    total_gwp: str
+
+
+class ContractProductLinkCreate(BaseModel):
+    """Create contract-product link(s)."""
+    extraction_id: str
+    gwp_breakdown_ids: list[str]  # Can link to multiple products at once
+    link_reason: Optional[str] = None
+
+
+class ContractProductLinkResponse(BaseModel):
+    """Contract-product link response."""
+    id: str
+    extraction_id: str
+    gwp_breakdown_id: str
+    link_reason: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    # Product info for display
+    product_info: Optional[ProductInfo] = None
+
+    # Analysis status
+    has_extraction: bool = False
+    extraction_status: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ContractProductLinksResponse(BaseModel):
+    """List of contract-product links."""
+    links: list[ContractProductLinkResponse]
+    total: int
+
+
+class ProductSuggestion(BaseModel):
+    """AI-suggested product for a contract."""
+    gwp_breakdown_id: str
+    product_info: ProductInfo
+    confidence: float
+    reason: str
+
+
+class SuggestProductsRequest(BaseModel):
+    """Request AI suggestion for products."""
+    extraction_id: str
+    member_id: str
+    model_provider: str = "anthropic"
+
+
+class SuggestProductsResponse(BaseModel):
+    """Response with AI-suggested products for a contract."""
+    extraction_id: str
+    suggestions: list[ProductSuggestion]
+
+
+# =============================================================================
+# PRODUCT EXTRACTION SCHEMAS (AI Analysis)
+# =============================================================================
+
+class ExtractedFieldData(BaseModel):
+    """Single extracted field with value and citation."""
+    value: Optional[str] = None
+    citation: Optional[str] = None
+    relevance_score: Optional[float] = None
+    reasoning: Optional[str] = None
+
+
+class ProductExtractionRequest(BaseModel):
+    """Request AI analysis for a contract-product link."""
+    contract_link_id: str
+    model_provider: str = "anthropic"
+    force: bool = False  # Force re-analysis even if completed extraction exists
+
+
+class ProductExtractionResponse(BaseModel):
+    """Product-specific extraction response."""
+    id: str
+    contract_link_id: str
+    model_provider: str
+    model_name: Optional[str] = None
+
+    # Product-specific extracted data
+    # Format: {field_path: {value, citation, relevance_score, reasoning}}
+    extracted_data: dict = Field(default_factory=dict)
+
+    # AI reasoning output
+    analysis_summary: Optional[str] = None
+    confidence_score: Optional[float] = None
+
+    # Status
+    status: str
+    error_message: Optional[str] = None
+
+    # Timestamps
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class BatchAnalyzeRequest(BaseModel):
+    """Request batch analysis for all linked products of a contract."""
+    extraction_id: str
+    model_provider: str = "anthropic"
+
+
+class BatchAnalyzeResponse(BaseModel):
+    """Response for batch analysis request."""
+    extraction_id: str
+    links_analyzed: int
+    status: str  # queued, processing, completed
+
+
+# =============================================================================
+# AUTHORITY SCHEMAS
+# =============================================================================
+
+class AuthorityBase(BaseModel):
+    """Base authority fields."""
+    extracted_data: dict = Field(default_factory=dict)
+    analysis_summary: Optional[str] = None
+
+
+class AuthorityUpdate(BaseModel):
+    """Update authority extracted data."""
+    extracted_data: Optional[dict] = None
+    analysis_summary: Optional[str] = None
+
+
+class AuthorityResponse(BaseModel):
+    """Full authority response."""
+    id: str
+
+    # Source tracking
+    product_extraction_id: str
+    contract_link_id: str
+
+    # Product combination
+    member_id: str
+    gwp_breakdown_id: str
+    lob_name: str
+    cob_name: str
+    product_name: str
+    sub_product_name: str
+    mpp_name: str
+
+    # Contract info
+    contract_id: str
+    contract_name: str
+
+    # Extracted data
+    extracted_data: dict = Field(default_factory=dict)
+    analysis_summary: Optional[str] = None
+
+    # Timestamps
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AuthorityListItem(BaseModel):
+    """Authority item for list view."""
+    id: str
+    member_id: str
+    contract_id: str
+    contract_name: str
+    lob_name: str
+    cob_name: str
+    product_name: str
+    sub_product_name: str
+    mpp_name: str
+    field_count: int  # Number of extracted fields
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AuthorityListResponse(BaseModel):
+    """Paginated list of authorities."""
+    authorities: list[AuthorityListItem]
+    total: int
+    skip: int
+    limit: int
+
+
+# =============================================================================
+# SYSTEM PROMPT SCHEMAS
+# =============================================================================
+
+class SystemPromptBase(BaseModel):
+    """Base system prompt fields."""
+    prompt_key: str
+    display_name: str
+    description: Optional[str] = None
+    prompt_content: str
+
+
+class SystemPromptCreate(SystemPromptBase):
+    """Create a system prompt."""
+    pass
+
+
+class SystemPromptUpdate(BaseModel):
+    """Update a system prompt."""
+    prompt_content: str
+
+
+class SystemPromptResponse(SystemPromptBase):
+    """System prompt response."""
+    id: str
+    is_custom: bool = False
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SystemPromptListResponse(BaseModel):
+    """List of system prompts."""
+    prompts: list[SystemPromptResponse]
+    total: int
+
+
 # Needed for forward reference in GWPTreeNode
 GWPTreeNode.model_rebuild()

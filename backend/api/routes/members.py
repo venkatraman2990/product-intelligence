@@ -13,8 +13,16 @@ from backend.models.member import (
     MemberContract,
     ContractTermMapping,
     MemberProductProgram,
+    ContractProductLink,
+    ProductExtraction,
+    Authority,
+    LineOfBusiness,
+    ClassOfBusiness,
+    Product,
+    SubProduct,
 )
 from backend.models.contract import Contract
+from backend.models.extraction import Extraction
 from backend.schemas.member import (
     MemberListResponse,
     MemberListItem,
@@ -26,6 +34,18 @@ from backend.schemas.member import (
     ImportResponse,
     TermMappingCreate,
     TermMappingResponse,
+    # New contract-product linking schemas
+    ProductInfo,
+    ContractProductLinkCreate,
+    ContractProductLinkResponse,
+    ContractProductLinksResponse,
+    ProductSuggestion,
+    SuggestProductsRequest,
+    SuggestProductsResponse,
+    ProductExtractionRequest,
+    ProductExtractionResponse,
+    BatchAnalyzeRequest,
+    BatchAnalyzeResponse,
 )
 from backend.services.member_import import import_from_excel, get_member_gwp_tree
 
@@ -601,3 +621,636 @@ Return ONLY the JSON array, no other text."""
 
     except Exception as e:
         return {"suggestions": [], "error": str(e)}
+
+
+# =============================================================================
+# CONTRACT-PRODUCT LINKING ENDPOINTS (NEW)
+# =============================================================================
+
+def _build_product_info(gwp: GWPBreakdown) -> ProductInfo:
+    """Helper to build ProductInfo from GWPBreakdown with related dimensions."""
+    return ProductInfo(
+        id=gwp.id,
+        lob={"code": gwp.line_of_business.lob_id, "name": gwp.line_of_business.name},
+        cob={"code": gwp.class_of_business.cob_id, "name": gwp.class_of_business.name},
+        product={"code": gwp.product.product_id, "name": gwp.product.name},
+        sub_product={"code": gwp.sub_product.sub_product_id, "name": gwp.sub_product.name},
+        mpp={"code": gwp.member_product_program.mpp_id, "name": gwp.member_product_program.name},
+        total_gwp=str(gwp.total_gwp),
+    )
+
+
+@router.post("/contract-links", response_model=ContractProductLinksResponse)
+def create_contract_product_links(
+    data: ContractProductLinkCreate,
+    db: Session = Depends(get_db),
+):
+    """Link a contract (via extraction) to one or more product combinations."""
+    # Verify extraction exists
+    extraction = db.query(Extraction).filter(Extraction.id == data.extraction_id).first()
+    if not extraction:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+
+    created_links = []
+    for gwp_id in data.gwp_breakdown_ids:
+        # Verify GWP breakdown exists
+        gwp = db.query(GWPBreakdown).filter(GWPBreakdown.id == gwp_id).first()
+        if not gwp:
+            continue  # Skip invalid IDs
+
+        # Check if link already exists
+        existing = db.query(ContractProductLink).filter(
+            ContractProductLink.extraction_id == data.extraction_id,
+            ContractProductLink.gwp_breakdown_id == gwp_id,
+        ).first()
+
+        if existing:
+            # Include existing link in response
+            created_links.append(ContractProductLinkResponse(
+                id=existing.id,
+                extraction_id=existing.extraction_id,
+                gwp_breakdown_id=existing.gwp_breakdown_id,
+                link_reason=existing.link_reason,
+                created_at=existing.created_at,
+                updated_at=existing.updated_at,
+                product_info=_build_product_info(gwp),
+                has_extraction=len(existing.product_extractions) > 0,
+                extraction_status=existing.product_extractions[0].status if existing.product_extractions else None,
+            ))
+            continue
+
+        # Create new link
+        link = ContractProductLink(
+            extraction_id=data.extraction_id,
+            gwp_breakdown_id=gwp_id,
+            link_reason=data.link_reason,
+        )
+        db.add(link)
+        db.flush()  # Get the ID
+
+        created_links.append(ContractProductLinkResponse(
+            id=link.id,
+            extraction_id=link.extraction_id,
+            gwp_breakdown_id=link.gwp_breakdown_id,
+            link_reason=link.link_reason,
+            created_at=link.created_at,
+            updated_at=link.updated_at,
+            product_info=_build_product_info(gwp),
+            has_extraction=False,
+            extraction_status=None,
+        ))
+
+    db.commit()
+
+    return ContractProductLinksResponse(
+        links=created_links,
+        total=len(created_links),
+    )
+
+
+@router.get("/contract-links/extraction/{extraction_id}", response_model=ContractProductLinksResponse)
+def get_contract_product_links(
+    extraction_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get all product combinations linked to a contract extraction."""
+    links = db.query(ContractProductLink).filter(
+        ContractProductLink.extraction_id == extraction_id
+    ).all()
+
+    response_links = []
+    for link in links:
+        gwp = db.query(GWPBreakdown).filter(GWPBreakdown.id == link.gwp_breakdown_id).first()
+        if gwp:
+            response_links.append(ContractProductLinkResponse(
+                id=link.id,
+                extraction_id=link.extraction_id,
+                gwp_breakdown_id=link.gwp_breakdown_id,
+                link_reason=link.link_reason,
+                created_at=link.created_at,
+                updated_at=link.updated_at,
+                product_info=_build_product_info(gwp),
+                has_extraction=len(link.product_extractions) > 0,
+                extraction_status=link.product_extractions[0].status if link.product_extractions else None,
+            ))
+
+    return ContractProductLinksResponse(
+        links=response_links,
+        total=len(response_links),
+    )
+
+
+@router.delete("/contract-links/{link_id}")
+def delete_contract_product_link(
+    link_id: str,
+    db: Session = Depends(get_db),
+):
+    """Remove a contract-product link."""
+    link = db.query(ContractProductLink).filter(ContractProductLink.id == link_id).first()
+    if not link:
+        raise HTTPException(status_code=404, detail="Contract-product link not found")
+
+    db.delete(link)
+    db.commit()
+
+    return {"message": "Contract-product link removed successfully"}
+
+
+@router.post("/contract-links/suggest", response_model=SuggestProductsResponse)
+def suggest_products_for_contract(
+    request: SuggestProductsRequest,
+    db: Session = Depends(get_db),
+):
+    """Use AI to suggest which product combinations a contract should be linked to."""
+    # Get the extraction with its data
+    extraction = db.query(Extraction).filter(Extraction.id == request.extraction_id).first()
+    if not extraction:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+
+    # Get member's products
+    member = db.query(Member).filter(Member.id == request.member_id).first()
+    if not member:
+        member = db.query(Member).filter(Member.member_id == request.member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    # Get all GWP breakdowns for this member
+    gwp_rows = db.query(GWPBreakdown).filter(GWPBreakdown.member_id == member.id).all()
+
+    # Format extracted data for AI
+    extracted_data = extraction.extracted_data or {}
+    extracted_text = json.dumps(extracted_data, indent=2, default=str)[:3000]  # Limit size
+
+    # Format product combinations for AI
+    products_text = "\n".join([
+        f"- ID: {gwp.id} | {gwp.line_of_business.name} > {gwp.class_of_business.name} > {gwp.product.name} > {gwp.sub_product.name} > {gwp.member_product_program.name} (GWP: ${gwp.total_gwp})"
+        for gwp in gwp_rows[:50]  # Limit to 50 products
+    ])
+
+    system_prompt = """You are an expert insurance underwriter assistant. Your task is to determine which product combinations a contract applies to.
+
+A contract may apply to one or more product combinations (LOB > COB > Product > Sub-Product > MPP).
+
+Analyze the contract's extracted data and determine which products it covers based on:
+1. Line of Business and Class of Business alignment with contract type
+2. Coverage descriptions matching product names
+3. Policy limits and terms that indicate specific product applicability
+4. Territory and jurisdiction matching
+5. Any explicit product references in the contract
+
+Return a JSON array of suggested products. For each suggestion include:
+- gwp_breakdown_id: The ID of the product combination
+- confidence: A score from 0 to 1 (0.8+ strong match, 0.5-0.8 moderate, below 0.5 weak)
+- reason: Brief explanation of why this contract applies to this product
+
+Only suggest products where there's clear evidence the contract applies to them."""
+
+    user_prompt = f"""Analyze this contract and suggest which product combinations it should be linked to.
+
+## Extracted Contract Data:
+{extracted_text}
+
+## Available Product Combinations for this Member:
+{products_text}
+
+Return a JSON array of product suggestions. Example format:
+[
+  {{"gwp_breakdown_id": "abc123", "confidence": 0.9, "reason": "Contract covers General Liability which matches this LOB"}},
+  {{"gwp_breakdown_id": "def456", "confidence": 0.75, "reason": "Property coverage terms align with this product"}}
+]
+
+Return ONLY the JSON array, no other text."""
+
+    try:
+        if request.model_provider == "anthropic":
+            import anthropic
+            from config.settings import ANTHROPIC_API_KEY
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            response_text = response.content[0].text
+
+        elif request.model_provider == "openai":
+            import openai
+            from config.settings import OPENAI_API_KEY
+
+            client = openai.OpenAI(api_key=OPENAI_API_KEY)
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                max_tokens=4096,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt + "\n\nWrap your response in a JSON object with a 'suggestions' array."},
+                ],
+            )
+            response_text = response.choices[0].message.content
+
+        else:
+            return SuggestProductsResponse(
+                extraction_id=request.extraction_id,
+                suggestions=[],
+            )
+
+        # Parse JSON response
+        response_text = response_text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        elif response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        parsed = json.loads(response_text)
+
+        # Handle both array and object with suggestions key
+        if isinstance(parsed, list):
+            raw_suggestions = parsed
+        elif isinstance(parsed, dict) and "suggestions" in parsed:
+            raw_suggestions = parsed["suggestions"]
+        else:
+            raw_suggestions = []
+
+        # Build ProductSuggestion objects with full product info
+        suggestions = []
+        for s in raw_suggestions:
+            gwp_id = s.get("gwp_breakdown_id")
+            gwp = db.query(GWPBreakdown).filter(GWPBreakdown.id == gwp_id).first()
+            if gwp:
+                suggestions.append(ProductSuggestion(
+                    gwp_breakdown_id=gwp_id,
+                    product_info=_build_product_info(gwp),
+                    confidence=float(s.get("confidence", 0.5)),
+                    reason=s.get("reason", ""),
+                ))
+
+        return SuggestProductsResponse(
+            extraction_id=request.extraction_id,
+            suggestions=suggestions,
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI suggestion failed: {str(e)}")
+
+
+# =============================================================================
+# PRODUCT EXTRACTION (AI ANALYSIS) ENDPOINTS
+# =============================================================================
+
+@router.post("/product-extractions/analyze", response_model=ProductExtractionResponse)
+def analyze_product_extraction(
+    request: ProductExtractionRequest,
+    db: Session = Depends(get_db),
+):
+    """Trigger AI analysis for a contract-product link to extract product-specific fields."""
+    # Get the contract-product link
+    link = db.query(ContractProductLink).filter(ContractProductLink.id == request.contract_link_id).first()
+    if not link:
+        raise HTTPException(status_code=404, detail="Contract-product link not found")
+
+    # Get the extraction data
+    extraction = db.query(Extraction).filter(Extraction.id == link.extraction_id).first()
+    if not extraction:
+        raise HTTPException(status_code=404, detail="Extraction not found")
+
+    # Get the product info
+    gwp = db.query(GWPBreakdown).filter(GWPBreakdown.id == link.gwp_breakdown_id).first()
+    if not gwp:
+        raise HTTPException(status_code=404, detail="Product combination not found")
+
+    # Get the contract for original text
+    contract = db.query(Contract).filter(Contract.id == extraction.contract_id).first()
+
+    # Check if analysis already exists
+    existing = db.query(ProductExtraction).filter(
+        ProductExtraction.contract_link_id == link.id
+    ).first()
+
+    # Handle force re-analysis: delete existing extraction and authority
+    if request.force and existing:
+        # Delete existing authority first (foreign key constraint)
+        existing_authority = db.query(Authority).filter(
+            Authority.product_extraction_id == existing.id
+        ).first()
+        if existing_authority:
+            db.delete(existing_authority)
+
+        # Delete existing extraction
+        db.delete(existing)
+        db.commit()
+        existing = None  # Reset so we create fresh
+
+    if existing and existing.status == "completed":
+        # Auto-create Authority if missing (for extractions completed before this feature)
+        existing_authority = db.query(Authority).filter(
+            Authority.product_extraction_id == existing.id
+        ).first()
+
+        if not existing_authority:
+            member = gwp.member
+            authority = Authority(
+                product_extraction_id=existing.id,
+                contract_link_id=link.id,
+                member_id=member.id,
+                gwp_breakdown_id=gwp.id,
+                lob_name=gwp.line_of_business.name,
+                cob_name=gwp.class_of_business.name,
+                product_name=gwp.product.name,
+                sub_product_name=gwp.sub_product.name,
+                mpp_name=gwp.member_product_program.name,
+                contract_id=contract.id if contract else None,
+                contract_name=contract.filename if contract else "Unknown",
+                extracted_data=existing.extracted_data or {},
+                analysis_summary=existing.analysis_summary,
+            )
+            db.add(authority)
+            db.commit()
+
+        # Return existing completed analysis
+        return ProductExtractionResponse(
+            id=existing.id,
+            contract_link_id=existing.contract_link_id,
+            model_provider=existing.model_provider,
+            model_name=existing.model_name,
+            extracted_data=existing.extracted_data or {},
+            analysis_summary=existing.analysis_summary,
+            confidence_score=existing.confidence_score,
+            status=existing.status,
+            error_message=existing.error_message,
+            created_at=existing.created_at,
+            completed_at=existing.completed_at,
+        )
+
+    # Create or update extraction record
+    if existing:
+        product_extraction = existing
+        product_extraction.status = "processing"
+        product_extraction.model_provider = request.model_provider
+    else:
+        product_extraction = ProductExtraction(
+            contract_link_id=link.id,
+            model_provider=request.model_provider,
+            status="processing",
+        )
+        db.add(product_extraction)
+    db.flush()
+
+    # Build product context
+    product_context = f"""Product Combination:
+- Line of Business: {gwp.line_of_business.name} ({gwp.line_of_business.lob_id})
+- Class of Business: {gwp.class_of_business.name} ({gwp.class_of_business.cob_id})
+- Product: {gwp.product.name} ({gwp.product.product_id})
+- Sub-Product: {gwp.sub_product.name} ({gwp.sub_product.sub_product_id})
+- Member Product Program: {gwp.member_product_program.name} ({gwp.member_product_program.mpp_id})
+- Total GWP: ${gwp.total_gwp}"""
+
+    # Format extracted data
+    extracted_data = extraction.extracted_data or {}
+    extracted_text = json.dumps(extracted_data, indent=2, default=str)
+
+    # Get contract text if available
+    contract_text = ""
+    if contract and contract.extracted_text:
+        contract_text = contract.extracted_text[:5000]  # Limit size
+
+    # Count fields for explicit instruction
+    field_count = len(extracted_data)
+    field_names = list(extracted_data.keys())
+
+    system_prompt = f"""You are an expert insurance contract analyst. Your task is to enrich extracted contract data with citations and relevance scores for a specific product combination.
+
+CRITICAL REQUIREMENT: The input contains exactly {field_count} fields. Your response MUST contain exactly {field_count} fields in extracted_data. Do NOT omit ANY fields.
+
+The fields you MUST include are: {', '.join(field_names)}
+
+For EACH of the {field_count} fields:
+1. Copy the original value EXACTLY as provided
+2. Add a citation (exact text snippet from the contract) - use "No direct citation found" if none exists
+3. Add relevance_score (0-1) for this specific product combination
+4. Add brief reasoning
+
+Return a JSON object with:
+- extracted_data: Object with ALL {field_count} fields, each having {{value, citation, relevance_score, reasoning}}
+- analysis_summary: Brief explanation
+- confidence_score: Overall confidence (0-1)
+
+WARNING: Responses with fewer than {field_count} fields will be rejected. Include ALL fields regardless of relevance."""
+
+    user_prompt = f"""{product_context}
+
+## Extracted Contract Data ({field_count} fields - YOU MUST INCLUDE ALL {field_count}):
+{extracted_text}
+
+## Original Contract Text (for citations):
+{contract_text if contract_text else "Not available"}
+
+TASK: Enrich ALL {field_count} fields with citations and relevance scores.
+
+Required output format:
+{{
+  "extracted_data": {{
+    "field_name": {{
+      "value": "COPY THE EXACT VALUE FROM INPUT",
+      "citation": "exact quote from contract or 'No direct citation found'",
+      "relevance_score": 0.0 to 1.0,
+      "reasoning": "brief explanation"
+    }}
+    // REPEAT FOR ALL {field_count} FIELDS
+  }},
+  "analysis_summary": "brief summary",
+  "confidence_score": 0.85
+}}
+
+MANDATORY: Your extracted_data object MUST have exactly {field_count} keys: {', '.join(field_names[:10])}{'...' if len(field_names) > 10 else ''}
+
+Return ONLY the JSON object."""
+
+    try:
+        from datetime import datetime
+
+        if request.model_provider == "anthropic":
+            import anthropic
+            from config.settings import ANTHROPIC_API_KEY
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=16384,  # Increased for large field sets
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            response_text = response.content[0].text
+            product_extraction.model_name = "claude-sonnet-4-20250514"
+
+        elif request.model_provider == "openai":
+            import openai
+            from config.settings import OPENAI_API_KEY
+
+            client = openai.OpenAI(api_key=OPENAI_API_KEY)
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                max_tokens=16384,  # Increased for large field sets
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            )
+            response_text = response.choices[0].message.content
+            product_extraction.model_name = "gpt-4o"
+
+        else:
+            product_extraction.status = "failed"
+            product_extraction.error_message = f"Unsupported provider: {request.model_provider}"
+            db.commit()
+            raise HTTPException(status_code=400, detail=f"Unsupported provider: {request.model_provider}")
+
+        # Parse JSON response
+        response_text = response_text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        elif response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        parsed = json.loads(response_text)
+
+        # Update extraction record
+        product_extraction.extracted_data = parsed.get("extracted_data", {})
+        product_extraction.analysis_summary = parsed.get("analysis_summary", "")
+        product_extraction.confidence_score = float(parsed.get("confidence_score", 0.5))
+        product_extraction.status = "completed"
+        product_extraction.completed_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(product_extraction)
+
+        # Auto-create Authority record
+        existing_authority = db.query(Authority).filter(
+            Authority.product_extraction_id == product_extraction.id
+        ).first()
+
+        if not existing_authority:
+            # Get member info from GWP breakdown
+            member = gwp.member
+
+            authority = Authority(
+                product_extraction_id=product_extraction.id,
+                contract_link_id=link.id,
+                member_id=member.id,
+                gwp_breakdown_id=gwp.id,
+                lob_name=gwp.line_of_business.name,
+                cob_name=gwp.class_of_business.name,
+                product_name=gwp.product.name,
+                sub_product_name=gwp.sub_product.name,
+                mpp_name=gwp.member_product_program.name,
+                contract_id=contract.id if contract else None,
+                contract_name=contract.filename if contract else "Unknown",
+                extracted_data=product_extraction.extracted_data or {},
+                analysis_summary=product_extraction.analysis_summary,
+            )
+            db.add(authority)
+            db.commit()
+
+        return ProductExtractionResponse(
+            id=product_extraction.id,
+            contract_link_id=product_extraction.contract_link_id,
+            model_provider=product_extraction.model_provider,
+            model_name=product_extraction.model_name,
+            extracted_data=product_extraction.extracted_data or {},
+            analysis_summary=product_extraction.analysis_summary,
+            confidence_score=product_extraction.confidence_score,
+            status=product_extraction.status,
+            error_message=product_extraction.error_message,
+            created_at=product_extraction.created_at,
+            completed_at=product_extraction.completed_at,
+        )
+
+    except json.JSONDecodeError as e:
+        product_extraction.status = "failed"
+        product_extraction.error_message = f"Failed to parse AI response: {str(e)}"
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Failed to parse AI response: {str(e)}")
+    except Exception as e:
+        product_extraction.status = "failed"
+        product_extraction.error_message = str(e)
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
+
+
+@router.get("/product-extractions/{link_id}", response_model=ProductExtractionResponse)
+def get_product_extraction(
+    link_id: str,
+    db: Session = Depends(get_db),
+):
+    """Get the product-specific extraction for a contract-product link."""
+    extraction = db.query(ProductExtraction).filter(
+        ProductExtraction.contract_link_id == link_id
+    ).first()
+
+    if not extraction:
+        raise HTTPException(status_code=404, detail="Product extraction not found")
+
+    return ProductExtractionResponse(
+        id=extraction.id,
+        contract_link_id=extraction.contract_link_id,
+        model_provider=extraction.model_provider,
+        model_name=extraction.model_name,
+        extracted_data=extraction.extracted_data or {},
+        analysis_summary=extraction.analysis_summary,
+        confidence_score=extraction.confidence_score,
+        status=extraction.status,
+        error_message=extraction.error_message,
+        created_at=extraction.created_at,
+        completed_at=extraction.completed_at,
+    )
+
+
+@router.post("/product-extractions/batch-analyze", response_model=BatchAnalyzeResponse)
+def batch_analyze_products(
+    request: BatchAnalyzeRequest,
+    db: Session = Depends(get_db),
+):
+    """Trigger AI analysis for all products linked to a contract."""
+    # Get all links for this extraction
+    links = db.query(ContractProductLink).filter(
+        ContractProductLink.extraction_id == request.extraction_id
+    ).all()
+
+    if not links:
+        raise HTTPException(status_code=404, detail="No product links found for this extraction")
+
+    # Queue analysis for each link
+    analyzed_count = 0
+    for link in links:
+        # Check if already analyzed
+        existing = db.query(ProductExtraction).filter(
+            ProductExtraction.contract_link_id == link.id,
+            ProductExtraction.status == "completed"
+        ).first()
+
+        if not existing:
+            # Create pending extraction
+            product_extraction = ProductExtraction(
+                contract_link_id=link.id,
+                model_provider=request.model_provider,
+                status="pending",
+            )
+            db.add(product_extraction)
+            analyzed_count += 1
+
+    db.commit()
+
+    return BatchAnalyzeResponse(
+        extraction_id=request.extraction_id,
+        links_analyzed=analyzed_count,
+        status="queued" if analyzed_count > 0 else "completed",
+    )

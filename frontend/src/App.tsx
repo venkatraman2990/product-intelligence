@@ -8,7 +8,10 @@ import ContractDetailPage from './pages/ContractDetailPage';
 import ExtractionDetailPage from './pages/ExtractionDetailPage';
 import MembersPage from './pages/MembersPage';
 import MemberDetailPage from './pages/MemberDetailPage';
+import AuthoritiesPage from './pages/AuthoritiesPage';
+import AuthorityDetailPage from './pages/AuthorityDetailPage';
 import SettingsPage from './pages/SettingsPage';
+import SystemPromptsPage from './pages/SystemPromptsPage';
 import { SettingsProvider } from './contexts/SettingsContext';
 
 const queryClient = new QueryClient({
@@ -34,7 +37,10 @@ function App() {
               <Route path="extractions/:id" element={<ExtractionDetailPage />} />
               <Route path="members" element={<MembersPage />} />
               <Route path="members/:id" element={<MemberDetailPage />} />
+              <Route path="authorities" element={<AuthoritiesPage />} />
+              <Route path="authorities/:id" element={<AuthorityDetailPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="system-prompts" element={<SystemPromptsPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

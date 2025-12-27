@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Check } from 'lucide-react';
-import { modelsApi, type AnthropicModel } from '../../api/client';
+import { modelsApi, type AnthropicModel, type OpenAIModel } from '../../api/client';
 import type { ExtractionModel } from '../../types';
 
 interface ModelPickerProps {
@@ -20,6 +20,7 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
   const [selectedProvider, setSelectedProvider] = useState<string>(initialModel?.provider || 'anthropic');
   const [selectedModel, setSelectedModel] = useState<string | null>(initialModel?.model || null);
   const [showMoreModels, setShowMoreModels] = useState(false);
+  const [showMoreOpenAIModels, setShowMoreOpenAIModels] = useState(false);
 
   const { data: pickerData, isLoading: isPickerLoading, error: pickerError } = useQuery({
     queryKey: ['models'],
@@ -33,6 +34,13 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
     retry: 1,
   });
 
+  const { data: openaiData, isLoading: isOpenAILoading, error: openaiError } = useQuery({
+    queryKey: ['models', 'openai'],
+    queryFn: modelsApi.getOpenAI,
+    enabled: selectedProvider === 'openai',
+    retry: 1,
+  });
+
   useEffect(() => {
     // Skip auto-select if an initial model was provided
     if (initialModel) return;
@@ -42,6 +50,13 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
       if (defaultModel && !selectedModel) {
         setSelectedModel(defaultModel.id);
         onSelect('anthropic', defaultModel.id);
+      }
+    } else if (selectedProvider === 'openai' && openaiData?.is_configured) {
+      // Auto-select gpt-4o as default for OpenAI
+      const defaultModel = openaiData.featured_models.find(m => m.family === 'gpt-4o');
+      if (defaultModel && !selectedModel) {
+        setSelectedModel(defaultModel.id);
+        onSelect('openai', defaultModel.id);
       }
     } else if (pickerData?.models) {
       const providerModels = pickerData.models[selectedProvider as keyof typeof pickerData.models] || [];
@@ -56,12 +71,13 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
         onSelect(selectedProvider, configuredModel.model_name);
       }
     }
-  }, [pickerData, anthropicData, selectedProvider, onSelect, selectedModel, initialModel]);
+  }, [pickerData, anthropicData, openaiData, selectedProvider, onSelect, selectedModel, initialModel]);
 
   const handleProviderChange = (provider: string) => {
     setSelectedProvider(provider);
     setSelectedModel(null);
     setShowMoreModels(false);
+    setShowMoreOpenAIModels(false);
   };
 
   const handleModelSelect = (modelId: string, provider: string) => {
@@ -237,6 +253,144 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
     );
   };
 
+  const renderOpenAIModels = () => {
+    if (isOpenAILoading) {
+      return (
+        <div className="flex items-center justify-center p-8">
+          <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--slate-400)' }} />
+          <span className="ml-2 text-sm" style={{ color: 'var(--slate-500)' }}>Loading OpenAI models...</span>
+        </div>
+      );
+    }
+
+    if (openaiError) {
+      return (
+        <div
+          className="p-4 rounded-xl"
+          style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA' }}
+        >
+          <div className="flex items-center mb-2">
+            <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            <span className="text-red-700 font-medium">Unable to load OpenAI models</span>
+          </div>
+          <p className="text-sm text-red-600">Please check your connection and try again.</p>
+        </div>
+      );
+    }
+
+    if (!openaiData?.is_configured) {
+      return (
+        <div
+          className="p-4 rounded-xl text-center"
+          style={{ backgroundColor: 'var(--slate-50)', border: '1px solid var(--slate-200)' }}
+        >
+          <p style={{ color: 'var(--slate-600)' }}>OpenAI API key not configured</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--slate-500)' }}>Add OPENAI_API_KEY to use OpenAI models</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {openaiData.featured_models.map((model: OpenAIModel) => {
+          const isSelected = selectedModel === model.id;
+          return (
+            <button
+              key={model.id}
+              onClick={() => handleModelSelect(model.id, 'openai')}
+              disabled={disabled}
+              className="w-full p-4 text-left rounded-xl transition-all"
+              style={{
+                border: `1px solid ${isSelected ? 'var(--accelerant-blue)' : 'var(--slate-200)'}`,
+                backgroundColor: isSelected ? 'var(--accelerant-blue-light)' : 'white',
+                boxShadow: isSelected ? '0 0 0 2px var(--accelerant-blue-border)' : 'none',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center">
+                    <span className="font-medium" style={{ color: 'var(--slate-900)' }}>
+                      {model.display_name}
+                    </span>
+                    {model.family === 'gpt-4o' && (
+                      <span
+                        className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                        style={{
+                          backgroundColor: 'var(--accelerant-blue-light)',
+                          color: 'var(--accelerant-blue)'
+                        }}
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        Recommended
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm mt-0.5" style={{ color: 'var(--slate-500)' }}>
+                    {model.description}
+                  </p>
+                </div>
+                {isSelected && (
+                  <Check className="h-5 w-5" style={{ color: 'var(--accelerant-blue)' }} />
+                )}
+              </div>
+            </button>
+          );
+        })}
+
+        {openaiData.other_models.length > 0 && (
+          <div className="mt-4">
+            <button
+              onClick={() => setShowMoreOpenAIModels(!showMoreOpenAIModels)}
+              className="w-full p-3 text-left rounded-lg flex items-center justify-between transition-colors hover:bg-slate-50"
+              style={{
+                border: '1px solid var(--slate-200)',
+                color: 'var(--slate-600)'
+              }}
+            >
+              <span className="text-sm font-medium">More models</span>
+              {showMoreOpenAIModels ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+
+            {showMoreOpenAIModels && (
+              <div className="mt-2 space-y-1 pl-2 border-l-2" style={{ borderColor: 'var(--slate-200)' }}>
+                {openaiData.other_models.map((model: OpenAIModel) => {
+                  const isSelected = selectedModel === model.id;
+                  return (
+                    <button
+                      key={model.id}
+                      onClick={() => handleModelSelect(model.id, 'openai')}
+                      disabled={disabled}
+                      className="w-full p-3 text-left rounded-lg flex items-center justify-between transition-colors"
+                      style={{
+                        backgroundColor: isSelected ? 'var(--accelerant-blue-light)' : 'transparent',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <span
+                        className="text-sm"
+                        style={{ color: isSelected ? 'var(--accelerant-blue)' : 'var(--slate-600)' }}
+                      >
+                        {model.display_name}
+                      </span>
+                      {isSelected && (
+                        <Check className="h-4 w-4" style={{ color: 'var(--accelerant-blue)' }} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderLegacyModels = () => {
     const models = pickerData?.models?.[selectedProvider as keyof typeof pickerData.models] ?? [];
     
@@ -353,7 +507,11 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
         })}
       </div>
 
-      {selectedProvider === 'anthropic' ? renderAnthropicModels() : renderLegacyModels()}
+      {selectedProvider === 'anthropic'
+        ? renderAnthropicModels()
+        : selectedProvider === 'openai'
+          ? renderOpenAIModels()
+          : renderLegacyModels()}
     </div>
   );
 }

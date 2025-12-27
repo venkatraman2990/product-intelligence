@@ -13,13 +13,12 @@ import {
   Users,
   Search,
   Link as LinkIcon,
-  Tag,
   X,
 } from 'lucide-react';
 import { contractsApi, extractionsApi, exportsApi, membersApi } from '../api/client';
 import ModelPicker from '../components/extraction/ModelPicker';
 import ResultsTable from '../components/results/ResultsTable';
-import TermMapper from '../components/members/TermMapper';
+import ContractProductLinker from '../components/members/ContractProductLinker';
 import type { Extraction, Member } from '../types';
 
 export default function ContractDetailPage() {
@@ -468,8 +467,8 @@ export default function ContractDetailPage() {
                           className="btn-secondary text-sm py-1.5 px-3"
                           style={{ backgroundColor: 'var(--accelerant-blue)', color: 'white', borderColor: 'var(--accelerant-blue)' }}
                         >
-                          <Tag className="h-4 w-4" />
-                          Map to Products
+                          <LinkIcon className="h-4 w-4" />
+                          Link to Products
                         </button>
                       )}
                       <button
@@ -523,9 +522,9 @@ export default function ContractDetailPage() {
         </div>
       </div>
 
-      {/* Term Mapping Modal */}
+      {/* Contract-Product Linking Modal */}
       {mappingExtraction && linkedMembers?.members?.[0] && (
-        <TermMapper
+        <ContractProductLinker
           extractionId={mappingExtraction.id}
           extractedData={mappingExtraction.extracted_data}
           memberId={linkedMembers.members[0].id}
