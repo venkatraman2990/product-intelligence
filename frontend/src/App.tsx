@@ -8,6 +8,8 @@ import ContractDetailPage from './pages/ContractDetailPage';
 import ExtractionDetailPage from './pages/ExtractionDetailPage';
 import MembersPage from './pages/MembersPage';
 import MemberDetailPage from './pages/MemberDetailPage';
+import SettingsPage from './pages/SettingsPage';
+import { SettingsProvider } from './contexts/SettingsContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,19 +23,22 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="upload" element={<UploadPage />} />
-            <Route path="contracts" element={<ContractsPage />} />
-            <Route path="contracts/:id" element={<ContractDetailPage />} />
-            <Route path="extractions/:id" element={<ExtractionDetailPage />} />
-            <Route path="members" element={<MembersPage />} />
-            <Route path="members/:id" element={<MemberDetailPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <SettingsProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="upload" element={<UploadPage />} />
+              <Route path="contracts" element={<ContractsPage />} />
+              <Route path="contracts/:id" element={<ContractDetailPage />} />
+              <Route path="extractions/:id" element={<ExtractionDetailPage />} />
+              <Route path="members" element={<MembersPage />} />
+              <Route path="members/:id" element={<MemberDetailPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </SettingsProvider>
     </QueryClientProvider>
   );
 }

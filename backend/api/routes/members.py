@@ -12,6 +12,7 @@ from backend.models.member import (
     GWPBreakdown,
     MemberContract,
     ContractTermMapping,
+    MemberProductProgram,
 )
 from backend.models.contract import Contract
 from backend.schemas.member import (
@@ -29,6 +30,21 @@ from backend.schemas.member import (
 from backend.services.member_import import import_from_excel, get_member_gwp_tree
 
 router = APIRouter()
+
+
+# =============================================================================
+# STATS ENDPOINT
+# =============================================================================
+
+@router.get("/stats")
+def get_member_stats(db: Session = Depends(get_db)):
+    """Get member and product statistics."""
+    member_count = db.query(Member).count()
+    mpp_count = db.query(MemberProductProgram).count()
+    return {
+        "member_count": member_count,
+        "product_count": mpp_count,
+    }
 
 
 # =============================================================================
@@ -454,3 +470,134 @@ def get_term_mappings_for_gwp(
     ).all()
 
     return {"mappings": mappings, "total": len(mappings)}
+
+
+# =============================================================================
+# AI MAPPING SUGGESTIONS ENDPOINT
+# =============================================================================
+
+from pydantic import BaseModel
+from typing import List
+import json
+
+class SuggestMappingsRequest(BaseModel):
+    extraction_id: str
+    member_id: str
+    model_provider: str = "anthropic"  # anthropic, openai, or landingai
+    extracted_fields: List[dict]  # [{path: str, value: str}]
+    product_combinations: List[dict]  # [{id, cob, lob, product, sub_product, mpp, total_gwp}]
+
+class MappingSuggestion(BaseModel):
+    field_path: str
+    gwp_breakdown_id: str
+    confidence: float  # 0-1
+    reason: str
+
+@router.post("/term-mappings/suggest")
+def suggest_term_mappings(
+    request: SuggestMappingsRequest,
+    db: Session = Depends(get_db),
+):
+    """Use AI to suggest mappings between extraction fields and product combinations."""
+
+    # Build prompt for AI
+    fields_text = "\n".join([
+        f"- {f['path']}: {f['value'][:100]}..." if len(str(f.get('value', ''))) > 100 else f"- {f['path']}: {f['value']}"
+        for f in request.extracted_fields
+    ])
+
+    products_text = "\n".join([
+        f"- ID: {p['id']} | {p.get('lob', {}).get('name', 'N/A')} > {p.get('cob', {}).get('name', 'N/A')} > {p.get('product', {}).get('name', 'N/A')} > {p.get('sub_product', {}).get('name', 'N/A')} > {p.get('mpp', {}).get('name', 'N/A')} (GWP: ${p.get('total_gwp', 0)})"
+        for p in request.product_combinations[:50]  # Limit to 50 products
+    ])
+
+    system_prompt = """You are an expert insurance underwriter assistant. Your task is to suggest mappings between extracted contract fields and product combinations.
+
+Analyze the extracted fields and match them to the most relevant product combinations based on:
+1. Line of Business (LOB) and Class of Business (COB) alignment
+2. Product type matching (e.g., liability fields to liability products)
+3. Coverage type matching
+4. Insurance domain knowledge
+
+Return a JSON array of suggested mappings. For each mapping include:
+- field_path: The exact field path from the extracted fields
+- gwp_breakdown_id: The ID of the product combination to map to
+- confidence: A score from 0 to 1 (0.8+ for strong matches, 0.5-0.8 for moderate, below 0.5 for weak)
+- reason: Brief explanation of why this mapping makes sense
+
+Only suggest mappings where there's a clear logical connection. Don't force mappings for unrelated fields."""
+
+    user_prompt = f"""Please analyze these extracted contract fields and suggest mappings to product combinations.
+
+## Extracted Fields:
+{fields_text}
+
+## Available Product Combinations:
+{products_text}
+
+Return a JSON array of mapping suggestions. Example format:
+[
+  {{"field_path": "limits.per_occurrence", "gwp_breakdown_id": "abc123", "confidence": 0.85, "reason": "Per occurrence limit aligns with General Liability coverage"}},
+  {{"field_path": "deductible.amount", "gwp_breakdown_id": "def456", "confidence": 0.7, "reason": "Deductible structure matches Property product terms"}}
+]
+
+Return ONLY the JSON array, no other text."""
+
+    try:
+        if request.model_provider == "anthropic":
+            import anthropic
+            from config.settings import ANTHROPIC_API_KEY
+
+            client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            response_text = response.content[0].text
+
+        elif request.model_provider == "openai":
+            import openai
+            from config.settings import OPENAI_API_KEY
+
+            client = openai.OpenAI(api_key=OPENAI_API_KEY)
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                max_tokens=4096,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt + "\n\nWrap your response in a JSON object with a 'suggestions' array."},
+                ],
+            )
+            response_text = response.choices[0].message.content
+
+        else:
+            # Default fallback for landingai or unsupported providers
+            return {"suggestions": [], "error": f"Provider {request.model_provider} not yet supported for mapping suggestions"}
+
+        # Parse JSON response
+        response_text = response_text.strip()
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        elif response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
+
+        parsed = json.loads(response_text)
+
+        # Handle both array and object with suggestions key
+        if isinstance(parsed, list):
+            suggestions = parsed
+        elif isinstance(parsed, dict) and "suggestions" in parsed:
+            suggestions = parsed["suggestions"]
+        else:
+            suggestions = []
+
+        return {"suggestions": suggestions}
+
+    except Exception as e:
+        return {"suggestions": [], "error": str(e)}

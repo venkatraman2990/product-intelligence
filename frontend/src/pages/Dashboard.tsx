@@ -1,12 +1,42 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { FileText, Upload, Clock, CheckCircle, ChevronRight } from 'lucide-react';
-import { contractsApi } from '../api/client';
+import { FileText, Upload, Clock, CheckCircle, ChevronRight, Users, Package } from 'lucide-react';
+import { contractsApi, membersApi } from '../api/client';
 
 export default function Dashboard() {
   const { data: contractsData, isLoading } = useQuery({
     queryKey: ['contracts', 0, 10],
     queryFn: () => contractsApi.list(0, 10),
+  });
+
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['memberStats'],
+    queryFn: () => membersApi.getStats(),
+  });
+
+  // Fetch members for each contract
+  const contractIds = contractsData?.contracts?.slice(0, 5).map(c => c.id) || [];
+  const memberQueries = useQueries({
+    queries: contractIds.map(contractId => ({
+      queryKey: ['contractMembers', contractId],
+      queryFn: () => membersApi.getMembersForContract(contractId),
+      enabled: !!contractId,
+    })),
+  });
+
+  // Build a map of contractId -> member info
+  const contractMemberMap: Record<string, { member_id: string; name: string } | null> = {};
+  contractIds.forEach((contractId, index) => {
+    const queryResult = memberQueries[index];
+    if (queryResult?.data?.members?.length > 0) {
+      const member = queryResult.data.members[0];
+      contractMemberMap[contractId] = {
+        member_id: member.member_id,
+        name: member.name,
+      };
+    } else {
+      contractMemberMap[contractId] = null;
+    }
   });
 
   // Calculate stats from contracts data
@@ -16,6 +46,20 @@ export default function Dashboard() {
   const readyCount = (contractsData?.total || 0) - extractedCount;
 
   const stats = [
+    {
+      name: 'Total Members',
+      value: statsData?.member_count || 0,
+      icon: Users,
+      bgColor: '#E0E7FF',
+      iconColor: '#4F46E5',
+    },
+    {
+      name: 'Total Products',
+      value: statsData?.product_count || 0,
+      icon: Package,
+      bgColor: '#FCE7F3',
+      iconColor: '#DB2777',
+    },
     {
       name: 'Total Contracts',
       value: contractsData?.total || 0,
@@ -58,7 +102,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="text-description mt-1">Contract extraction and intelligence</p>
+          <p className="text-description mt-1">Accelerant Risk Exchange Insurance Product Control Tower</p>
         </div>
         <Link to="/upload" className="btn-primary">
           <Upload className="h-4 w-4" />
@@ -66,10 +110,10 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {stats.map((stat) => (
           <div key={stat.name} className="card flex items-center">
-            <div 
+            <div
               className="p-3 rounded-xl"
               style={{ backgroundColor: stat.bgColor }}
             >
@@ -78,7 +122,7 @@ export default function Dashboard() {
             <div className="ml-4">
               <p className="text-sm" style={{ color: 'var(--slate-500)' }}>{stat.name}</p>
               <p className="text-2xl font-semibold" style={{ color: 'var(--slate-900)' }}>
-                {isLoading ? '-' : stat.value}
+                {(isLoading || statsLoading) ? '-' : stat.value}
               </p>
             </div>
           </div>
@@ -86,7 +130,7 @@ export default function Dashboard() {
       </div>
 
       <div className="card" style={{ padding: 0 }}>
-        <div 
+        <div
           className="px-5 py-4 flex items-center justify-between border-b"
           style={{ borderColor: 'var(--slate-200)' }}
         >
@@ -126,6 +170,8 @@ export default function Dashboard() {
             <table className="w-full">
               <thead style={{ backgroundColor: 'var(--slate-50)' }}>
                 <tr>
+                  <th className="table-header text-left px-5 py-3">Member ID</th>
+                  <th className="table-header text-left px-5 py-3">Member Name</th>
                   <th className="table-header text-left px-5 py-3">Document</th>
                   <th className="table-header text-left px-5 py-3">Type</th>
                   <th className="table-header text-left px-5 py-3">Size</th>
@@ -134,42 +180,51 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {contractsData?.contracts?.slice(0, 5).map((contract) => (
-                  <tr 
-                    key={contract.id} 
-                    className="border-t transition-colors hover:bg-slate-50"
-                    style={{ borderColor: 'var(--slate-100)' }}
-                  >
-                    <td className="px-5 py-4">
-                      <Link
-                        to={`/contracts/${contract.id}`}
-                        className="flex items-center group"
-                      >
-                        <FileText className="h-5 w-5 transition-colors" style={{ color: 'var(--slate-400)' }} />
-                        <span 
-                          className="ml-3 text-sm font-medium group-hover:underline"
-                          style={{ color: 'var(--slate-900)' }}
+                {contractsData?.contracts?.slice(0, 5).map((contract) => {
+                  const memberInfo = contractMemberMap[contract.id];
+                  return (
+                    <tr
+                      key={contract.id}
+                      className="border-t transition-colors hover:bg-slate-50"
+                      style={{ borderColor: 'var(--slate-100)' }}
+                    >
+                      <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
+                        {memberInfo?.member_id || '-'}
+                      </td>
+                      <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-900)' }}>
+                        {memberInfo?.name || '-'}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Link
+                          to={`/contracts/${contract.id}`}
+                          className="flex items-center group"
                         >
-                          {contract.original_filename}
+                          <FileText className="h-5 w-5 transition-colors" style={{ color: 'var(--slate-400)' }} />
+                          <span
+                            className="ml-3 text-sm font-medium group-hover:underline"
+                            style={{ color: 'var(--slate-900)' }}
+                          >
+                            {contract.original_filename}
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="badge badge-internal">
+                          {contract.file_type.toUpperCase()}
                         </span>
-                      </Link>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className="badge badge-internal">
-                        {contract.file_type.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
-                      {formatFileSize(contract.file_size_bytes)}
-                    </td>
-                    <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
-                      {contract.page_count || '-'}
-                    </td>
-                    <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
-                      {formatDate(contract.uploaded_at)}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
+                        {formatFileSize(contract.file_size_bytes)}
+                      </td>
+                      <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
+                        {contract.page_count || '-'}
+                      </td>
+                      <td className="px-5 py-4 text-sm" style={{ color: 'var(--slate-500)' }}>
+                        {formatDate(contract.uploaded_at)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -5,9 +5,9 @@ import accelerantLogo from '../assets/accelerant-logo-transparent.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
+  { name: 'Members', href: '/members', icon: Users },
   { name: 'Upload', href: '/upload', icon: Upload },
   { name: 'Contracts', href: '/contracts', icon: FileText },
-  { name: 'Members', href: '/members', icon: Users },
 ];
 
 export default function Layout() {
@@ -59,15 +59,15 @@ export default function Layout() {
 
           {!sidebarCollapsed && (
             <div className="mt-10">
-              <p 
+              <p
                 className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider"
                 style={{ color: 'var(--slate-400)' }}
               >
                 Admin
               </p>
               <Link
-                to="#"
-                className="sidebar-item"
+                to="/settings"
+                className={`sidebar-item ${location.pathname === '/settings' ? 'active' : ''}`}
               >
                 <Settings className="h-5 w-5 mr-3" />
                 Settings
@@ -77,8 +77,8 @@ export default function Layout() {
           {sidebarCollapsed && (
             <div className="mt-10">
               <Link
-                to="#"
-                className="sidebar-item justify-center"
+                to="/settings"
+                className={`sidebar-item justify-center ${location.pathname === '/settings' ? 'active' : ''}`}
                 title="Settings"
               >
                 <Settings className="h-5 w-5" />

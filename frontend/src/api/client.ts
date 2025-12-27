@@ -147,6 +147,11 @@ export const exportsApi = {
 
 // Members endpoints
 export const membersApi = {
+  getStats: async (): Promise<{ member_count: number; product_count: number }> => {
+    const response = await api.get('/api/members/stats');
+    return response.data;
+  },
+
   list: async (skip = 0, limit = 50, search?: string): Promise<MemberListResponse> => {
     const response = await api.get('/api/members/', {
       params: { skip, limit, search },
@@ -245,6 +250,32 @@ export const membersApi = {
 
   unlinkContract: async (memberId: string, contractId: string): Promise<{ message: string }> => {
     const response = await api.delete(`/api/members/${memberId}/contracts/${contractId}`);
+    return response.data;
+  },
+
+  suggestMappings: async (data: {
+    extraction_id: string;
+    member_id: string;
+    model_provider: string;
+    extracted_fields: Array<{ path: string; value: string }>;
+    product_combinations: Array<{
+      id: string;
+      lob: { code: string; name: string };
+      cob: { code: string; name: string };
+      product: { code: string; name: string };
+      sub_product: { code: string; name: string };
+      mpp: { code: string; name: string };
+      total_gwp: string;
+    }>;
+  }): Promise<{
+    suggestions: Array<{
+      field_path: string;
+      gwp_breakdown_id: string;
+      confidence: number;
+      reason: string;
+    }>;
+  }> => {
+    const response = await api.post('/api/members/term-mappings/suggest', data);
     return response.data;
   },
 };

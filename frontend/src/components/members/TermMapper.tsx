@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Link as LinkIcon, Check, Tag, Loader2 } from 'lucide-react';
+import { X, Link as LinkIcon, Check, Tag, Loader2, Sparkles, Wand2 } from 'lucide-react';
 import { membersApi } from '../../api/client';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface ProductCombination {
   id: string;
@@ -19,6 +20,13 @@ interface TermMapperProps {
   memberId: string;
   memberName: string;
   onClose: () => void;
+}
+
+interface AISuggestion {
+  field_path: string;
+  gwp_breakdown_id: string;
+  confidence: number;
+  reason: string;
 }
 
 function formatCurrency(value: string | number): string {
@@ -62,7 +70,12 @@ export default function TermMapper({
   onClose,
 }: TermMapperProps) {
   const queryClient = useQueryClient();
+  const { settings } = useSettings();
   const [selectedField, setSelectedField] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
+  const [isSuggestingMappings, setIsSuggestingMappings] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [hasAutoSuggested, setHasAutoSuggested] = useState(false);
 
   // Get member's GWP tree
   const { data: gwpTree, isLoading: treeLoading } = useQuery({
@@ -88,6 +101,9 @@ export default function TermMapper({
       setSelectedField(null);
     },
   });
+
+  // Get flattened extraction fields (moved up for use in suggestions)
+  const extractedFields = flattenData(extractedData);
 
   // Build product combinations from tree
   const productCombinations: ProductCombination[] = [];
@@ -127,8 +143,99 @@ export default function TermMapper({
     return gwpB - gwpA;
   });
 
-  // Get flattened extraction fields
-  const extractedFields = flattenData(extractedData);
+  // Function to request AI suggestions
+  const requestSuggestions = async () => {
+    if (sortedCombinations.length === 0 || extractedFields.length === 0) {
+      setSuggestError('No data available for suggestions');
+      return;
+    }
+
+    setIsSuggestingMappings(true);
+    setSuggestError(null);
+
+    try {
+      const response = await membersApi.suggestMappings({
+        extraction_id: extractionId,
+        member_id: memberId,
+        model_provider: settings.mappingModelProvider,
+        extracted_fields: extractedFields,
+        product_combinations: sortedCombinations,
+      });
+
+      setSuggestions(response.suggestions);
+
+      // If autoMapping is enabled, apply all suggestions automatically
+      if (settings.autoMapping && response.suggestions.length > 0) {
+        for (const suggestion of response.suggestions) {
+          // Only apply if not already mapped
+          if (!getMappedProductId(suggestion.field_path)) {
+            await membersApi.createTermMapping({
+              extraction_id: extractionId,
+              gwp_breakdown_id: suggestion.gwp_breakdown_id,
+              field_path: suggestion.field_path,
+            });
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ['termMappings', extractionId] });
+      }
+    } catch (error) {
+      console.error('Failed to get suggestions:', error);
+      setSuggestError('Failed to get AI suggestions. Please try again.');
+    } finally {
+      setIsSuggestingMappings(false);
+    }
+  };
+
+  // Auto-suggest on load if autoMapping is enabled
+  useEffect(() => {
+    if (
+      settings.autoMapping &&
+      !hasAutoSuggested &&
+      sortedCombinations.length > 0 &&
+      extractedFields.length > 0 &&
+      !treeLoading
+    ) {
+      setHasAutoSuggested(true);
+      requestSuggestions();
+    }
+  }, [settings.autoMapping, hasAutoSuggested, sortedCombinations.length, extractedFields.length, treeLoading]);
+
+  // Apply a single suggestion
+  const applySuggestion = async (suggestion: AISuggestion) => {
+    try {
+      await membersApi.createTermMapping({
+        extraction_id: extractionId,
+        gwp_breakdown_id: suggestion.gwp_breakdown_id,
+        field_path: suggestion.field_path,
+      });
+      queryClient.invalidateQueries({ queryKey: ['termMappings', extractionId] });
+      // Remove from suggestions list
+      setSuggestions(prev => prev.filter(s => s.field_path !== suggestion.field_path));
+    } catch (error) {
+      console.error('Failed to apply suggestion:', error);
+    }
+  };
+
+  // Apply all suggestions
+  const applyAllSuggestions = async () => {
+    for (const suggestion of suggestions) {
+      if (!getMappedProductId(suggestion.field_path)) {
+        await applySuggestion(suggestion);
+      }
+    }
+  };
+
+  // Get suggestion for a field
+  const getSuggestionForField = (fieldPath: string) => {
+    return suggestions.find(s => s.field_path === fieldPath);
+  };
+
+  // Get confidence badge color
+  const getConfidenceBadgeColor = (confidence: number) => {
+    if (confidence >= 0.8) return 'bg-green-100 text-green-700';
+    if (confidence >= 0.5) return 'bg-yellow-100 text-yellow-700';
+    return 'bg-slate-100 text-slate-600';
+  };
 
   // Check if a field is already mapped
   const getMappedProductId = (fieldPath: string) => {
@@ -164,13 +271,55 @@ export default function TermMapper({
               Member: <span className="font-medium">{memberName}</span>
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X className="h-5 w-5 text-slate-500" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={requestSuggestions}
+              disabled={isSuggestingMappings || sortedCombinations.length === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSuggestingMappings ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Suggest Mappings
+                </>
+              )}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="h-5 w-5 text-slate-500" />
+            </button>
+          </div>
         </div>
+
+        {/* AI Suggestions Banner */}
+        {suggestError && (
+          <div className="px-6 py-3 bg-red-50 border-b border-red-200 text-red-700 text-sm">
+            {suggestError}
+          </div>
+        )}
+        {suggestions.length > 0 && !settings.autoMapping && (
+          <div className="px-6 py-3 bg-purple-50 border-b border-purple-200 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-purple-700">
+              <Wand2 className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                {suggestions.length} AI suggestion{suggestions.length !== 1 ? 's' : ''} available
+              </span>
+            </div>
+            <button
+              onClick={applyAllSuggestions}
+              className="text-sm px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+            >
+              Apply All
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 overflow-hidden flex">
@@ -189,33 +338,61 @@ export default function TermMapper({
               {extractedFields.map((field) => {
                 const mappedTo = getMappedProductId(field.path);
                 const isSelected = selectedField === field.path;
+                const suggestion = getSuggestionForField(field.path);
 
                 return (
-                  <button
-                    key={field.path}
-                    onClick={() => setSelectedField(isSelected ? null : field.path)}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                        : mappedTo
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-800 truncate">
-                          {field.path}
-                        </p>
-                        <p className="text-xs text-slate-500 truncate mt-0.5">
-                          {field.value}
-                        </p>
+                  <div key={field.path} className="relative">
+                    <button
+                      onClick={() => setSelectedField(isSelected ? null : field.path)}
+                      className={`w-full text-left p-3 rounded-lg border transition-all ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                          : mappedTo
+                          ? 'border-green-300 bg-green-50'
+                          : suggestion
+                          ? 'border-purple-300 bg-purple-50'
+                          : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">
+                            {field.path}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate mt-0.5">
+                            {field.value}
+                          </p>
+                        </div>
+                        {mappedTo && (
+                          <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        )}
                       </div>
-                      {mappedTo && (
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      )}
-                    </div>
-                  </button>
+                    </button>
+                    {/* AI Suggestion Card */}
+                    {suggestion && !mappedTo && (
+                      <div className="mt-1 ml-2 p-2 bg-purple-50 rounded border border-purple-200 text-xs">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1">
+                            <Sparkles className="h-3 w-3 text-purple-600" />
+                            <span className="font-medium text-purple-700">AI Suggestion</span>
+                            <span className={`ml-1 px-1.5 py-0.5 rounded text-xs ${getConfidenceBadgeColor(suggestion.confidence)}`}>
+                              {Math.round(suggestion.confidence * 100)}%
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              applySuggestion(suggestion);
+                            }}
+                            className="px-2 py-0.5 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                          >
+                            Apply
+                          </button>
+                        </div>
+                        <p className="text-slate-600 mt-1">{suggestion.reason}</p>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
