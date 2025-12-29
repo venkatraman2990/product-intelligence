@@ -92,6 +92,7 @@ class DocumentLoader:
         logger.info(f"Loading PDF: {path}")
 
         doc = fitz.open(path)
+        total_pages = doc.page_count  # Get actual PDF page count
         text_parts = []
         metadata = {
             "title": doc.metadata.get("title", ""),
@@ -109,12 +110,12 @@ class DocumentLoader:
         doc.close()
 
         full_text = "\n\n".join(text_parts)
-        logger.info(f"Extracted {len(full_text)} characters from {len(text_parts)} pages")
+        logger.info(f"Extracted {len(full_text)} characters from {total_pages} pages ({len(text_parts)} with text)")
 
         return LoadedDocument(
             path=path,
             text=full_text,
-            page_count=len(text_parts),
+            page_count=total_pages,  # Use actual page count, not just pages with text
             document_type="pdf",
             metadata=metadata,
         )
@@ -163,12 +164,16 @@ class DocumentLoader:
             logger.warning(f"Could not extract Word metadata: {e}")
 
         full_text = "\n\n".join(text_parts)
-        logger.info(f"Extracted {len(full_text)} characters from Word document")
+
+        # Estimate page count based on content length (~3000 chars per page typical)
+        estimated_pages = max(1, len(full_text) // 3000 + (1 if len(full_text) % 3000 > 500 else 0))
+
+        logger.info(f"Extracted {len(full_text)} characters from Word document (~{estimated_pages} pages)")
 
         return LoadedDocument(
             path=path,
             text=full_text,
-            page_count=1,  # Word doesn't have explicit pages
+            page_count=estimated_pages,  # Estimated based on content length
             document_type="docx",
             metadata=metadata,
         )

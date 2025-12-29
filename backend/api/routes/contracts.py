@@ -410,3 +410,40 @@ async def delete_contract(
     db.commit()
 
     return {"message": "Contract deleted successfully", "contract_id": contract_id}
+
+
+@router.post("/backfill-page-counts")
+async def backfill_page_counts(db: Session = Depends(get_db)):
+    """Recalculate page counts for all existing contracts."""
+    contracts = db.query(Contract).filter(Contract.is_deleted == False).all()
+
+    updated = 0
+    errors = []
+    document_loader = DocumentLoader()
+
+    for contract in contracts:
+        try:
+            file_path = Path(contract.file_path)
+            if not file_path.exists():
+                errors.append({"id": contract.id, "error": "File not found"})
+                continue
+
+            loaded_doc = document_loader.load(file_path)
+            old_count = contract.page_count
+            new_count = loaded_doc.page_count
+
+            if old_count != new_count:
+                contract.page_count = new_count
+                updated += 1
+
+        except Exception as e:
+            errors.append({"id": contract.id, "error": str(e)})
+
+    db.commit()
+
+    return {
+        "message": f"Updated {updated} contracts",
+        "total_contracts": len(contracts),
+        "updated": updated,
+        "errors": errors,
+    }

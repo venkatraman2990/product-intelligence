@@ -17,6 +17,26 @@ import {
 } from 'lucide-react';
 import { authoritiesApi, type Authority, type ExtractedFieldData } from '../api/client';
 
+// Helper function to safely extract display values from fields with inconsistent structure
+function getFieldDisplayValue(field: ExtractedFieldData | string | unknown): string {
+  if (field === null || field === undefined) return 'N/A';
+  if (typeof field === 'string') return field;
+  if (typeof field === 'number' || typeof field === 'boolean') return String(field);
+  if (Array.isArray(field)) return field.join(', ');
+  if (typeof field === 'object' && 'value' in field) {
+    const val = (field as ExtractedFieldData).value;
+    if (val === null || val === undefined) return 'N/A';
+    if (Array.isArray(val)) return val.join(', ');
+    return String(val);
+  }
+  // For objects without 'value' property, try to stringify
+  try {
+    return JSON.stringify(field);
+  } catch {
+    return 'N/A';
+  }
+}
+
 export default function AuthorityDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -281,7 +301,7 @@ export default function AuthorityDetailPage() {
                           {isEditing ? (
                             <input
                               type="text"
-                              value={field?.value || ''}
+                              value={getFieldDisplayValue(field)}
                               onChange={(e) => handleFieldChange(fieldPath, e.target.value)}
                               className="mt-2 w-full px-3 py-2 rounded-lg border text-base"
                               style={{
@@ -292,7 +312,7 @@ export default function AuthorityDetailPage() {
                             />
                           ) : (
                             <p className="text-base mt-1" style={{ color: 'var(--slate-900)' }}>
-                              {field?.value || 'N/A'}
+                              {getFieldDisplayValue(field)}
                             </p>
                           )}
                         </div>

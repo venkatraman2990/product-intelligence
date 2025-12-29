@@ -445,7 +445,7 @@ export const membersApi = {
 export interface AuthorityListItem {
   id: string;
   member_id: string;
-  contract_id: string;
+  contract_id?: string;
   contract_name: string;
   lob_name: string;
   cob_name: string;
@@ -475,7 +475,7 @@ export interface Authority {
   product_name: string;
   sub_product_name: string;
   mpp_name: string;
-  contract_id: string;
+  contract_id?: string;
   contract_name: string;
   extracted_data: Record<string, ExtractedFieldData>;
   analysis_summary?: string;

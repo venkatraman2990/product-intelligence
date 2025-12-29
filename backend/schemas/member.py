@@ -455,7 +455,7 @@ class AuthorityResponse(BaseModel):
     mpp_name: str
 
     # Contract info
-    contract_id: str
+    contract_id: Optional[str] = None
     contract_name: str
 
     # Extracted data
@@ -474,7 +474,7 @@ class AuthorityListItem(BaseModel):
     """Authority item for list view."""
     id: str
     member_id: str
-    contract_id: str
+    contract_id: Optional[str] = None
     contract_name: str
     lob_name: str
     cob_name: str
