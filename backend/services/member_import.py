@@ -134,6 +134,13 @@ def import_from_excel(db: Session, file_path: str) -> Dict:
             gwp_value = 0
         total_gwp = Decimal(str(gwp_value))
 
+        # Parse Loss Ratio (column name: LOSS_RATIO (DUMMY))
+        loss_ratio_value = row.get('LOSS_RATIO (DUMMY)')
+        if pd.isna(loss_ratio_value) if loss_ratio_value is not None else True:
+            loss_ratio = None
+        else:
+            loss_ratio = Decimal(str(loss_ratio_value))
+
         # Check if GWP breakdown already exists for this exact combination
         existing_gwp = db.query(GWPBreakdown).filter(
             GWPBreakdown.member_id == member_uuid,
@@ -145,8 +152,9 @@ def import_from_excel(db: Session, file_path: str) -> Dict:
         ).first()
 
         if existing_gwp:
-            # Update GWP value
+            # Update GWP value and loss ratio
             existing_gwp.total_gwp = total_gwp
+            existing_gwp.loss_ratio = loss_ratio
         else:
             # Create new breakdown
             breakdown = GWPBreakdown(
@@ -157,6 +165,7 @@ def import_from_excel(db: Session, file_path: str) -> Dict:
                 sub_product_id=sub_product_uuid,
                 mpp_id=mpp_uuid,
                 total_gwp=total_gwp,
+                loss_ratio=loss_ratio,
             )
             db.add(breakdown)
             gwp_rows_imported += 1
@@ -213,15 +222,20 @@ def get_member_gwp_tree(db: Session, member_uuid: str) -> Dict:
                 "children": defaultdict(lambda: {
                     "children": defaultdict(lambda: {
                         "gwp": Decimal("0"),
+                        "loss_ratio": None,
                         "breakdown_ids": [],
                     }),
                     "gwp": Decimal("0"),
+                    "loss_ratio": None,
                 }),
                 "gwp": Decimal("0"),
+                "loss_ratio": None,
             }),
             "gwp": Decimal("0"),
+            "loss_ratio": None,
         }),
         "gwp": Decimal("0"),
+        "loss_ratio": None,
     })
 
     total_gwp = Decimal("0")
@@ -249,6 +263,9 @@ def get_member_gwp_tree(db: Session, member_uuid: str) -> Dict:
         tree[lob_key]["children"][cob_key]["children"][prod_key]["children"][sub_key]["gwp"] += gwp
         tree[lob_key]["children"][cob_key]["children"][prod_key]["children"][sub_key]["children"][mpp_key]["gwp"] += gwp
         tree[lob_key]["children"][cob_key]["children"][prod_key]["children"][sub_key]["children"][mpp_key]["breakdown_ids"].append(b.id)
+        # Store loss_ratio at the MPP (leaf) level
+        if b.loss_ratio is not None:
+            tree[lob_key]["children"][cob_key]["children"][prod_key]["children"][sub_key]["children"][mpp_key]["loss_ratio"] = b.loss_ratio
 
     # Convert to list format
     def build_node(key, data, level):
@@ -273,6 +290,7 @@ def get_member_gwp_tree(db: Session, member_uuid: str) -> Dict:
             "name": name,
             "level": level,
             "total_gwp": str(data["gwp"]),
+            "loss_ratio": str(data["loss_ratio"]) if data.get("loss_ratio") is not None else None,
             "children": children,
         }
 

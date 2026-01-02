@@ -141,6 +141,9 @@ class GWPBreakdown(Base):
     # GWP amount
     total_gwp = Column(Numeric(15, 2), nullable=False, default=0)
 
+    # Loss ratio (e.g., 0.64 = 64%)
+    loss_ratio = Column(Numeric(5, 4), nullable=True, default=None)
+
     # Tracking
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

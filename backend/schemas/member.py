@@ -68,6 +68,7 @@ class GWPBreakdownResponse(BaseModel):
     """Single GWP breakdown row."""
     id: str
     total_gwp: Decimal
+    loss_ratio: Optional[Decimal] = None
 
     # Dimension info
     line_of_business: LineOfBusinessResponse
@@ -87,6 +88,7 @@ class GWPTreeNode(BaseModel):
     name: str
     level: str  # 'lob', 'cob', 'product', 'sub_product', 'mpp'
     total_gwp: Decimal
+    loss_ratio: Optional[Decimal] = None  # e.g., 0.64 = 64%
     children: list["GWPTreeNode"] = Field(default_factory=list)
     gwp_breakdown_ids: list[str] = Field(default_factory=list)  # For leaf nodes
 
@@ -306,6 +308,7 @@ class ProductInfo(BaseModel):
     sub_product: dict  # {code, name}
     mpp: dict  # {code, name}
     total_gwp: str
+    loss_ratio: Optional[str] = None  # e.g., "0.64" for 64%
 
 
 class ContractProductLinkCreate(BaseModel):

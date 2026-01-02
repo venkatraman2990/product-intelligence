@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, JSON, Boolean
+from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, JSON, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from backend.core.database import Base
@@ -75,3 +75,24 @@ class ExtractionModel(Base):
 
     def __repr__(self):
         return f"<ExtractionModel {self.provider}/{self.model_name}>"
+
+
+class FeaturedModel(Base):
+    """User-configured featured models for the model picker UI."""
+
+    __tablename__ = "featured_models"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    provider = Column(String(50), nullable=False)  # anthropic, openai
+    model_id = Column(String(100), nullable=False)  # e.g., claude-sonnet-4-20250514
+    display_name = Column(String(200))  # Custom display name (optional override)
+    sort_order = Column(Integer, default=0)  # Order in featured list
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('provider', 'model_id', name='uq_featured_model'),
+    )
+
+    def __repr__(self):
+        return f"<FeaturedModel {self.provider}/{self.model_id}>"

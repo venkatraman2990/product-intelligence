@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Check } from 'lucide-react';
-import { modelsApi, type AnthropicModel, type OpenAIModel } from '../../api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Check, Settings, X, GripVertical } from 'lucide-react';
+import { modelsApi, type AnthropicModel, type OpenAIModel, type FeaturedModelConfig } from '../../api/client';
 import type { ExtractionModel } from '../../types';
 
 interface ModelPickerProps {
@@ -16,11 +16,24 @@ const providerLabels: Record<string, string> = {
   landing_ai: 'Landing AI',
 };
 
+// Interface for model in settings modal
+interface ModelForConfig {
+  id: string;
+  display_name: string;
+  family?: string;
+}
+
 export default function ModelPicker({ onSelect, disabled = false, initialModel = null }: ModelPickerProps) {
   const [selectedProvider, setSelectedProvider] = useState<string>(initialModel?.provider || 'anthropic');
   const [selectedModel, setSelectedModel] = useState<string | null>(initialModel?.model || null);
   const [showMoreModels, setShowMoreModels] = useState(false);
   const [showMoreOpenAIModels, setShowMoreOpenAIModels] = useState(false);
+
+  // Featured models configuration state
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsProvider, setSettingsProvider] = useState<'anthropic' | 'openai'>('anthropic');
+  const [featuredConfigs, setFeaturedConfigs] = useState<FeaturedModelConfig[]>([]);
+  const queryClient = useQueryClient();
 
   const { data: pickerData, isLoading: isPickerLoading, error: pickerError } = useQuery({
     queryKey: ['models'],
@@ -40,6 +53,38 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
     enabled: selectedProvider === 'openai',
     retry: 1,
   });
+
+  // Query for featured models configuration
+  const { data: featuredData } = useQuery({
+    queryKey: ['models', 'featured', settingsProvider],
+    queryFn: () => modelsApi.getFeatured(settingsProvider),
+    enabled: showSettingsModal,
+  });
+
+  // Mutation to update featured models
+  const updateFeaturedMutation = useMutation({
+    mutationFn: ({ provider, models }: { provider: string; models: FeaturedModelConfig[] }) =>
+      modelsApi.updateFeatured(provider, models),
+    onSuccess: (_, variables) => {
+      // Invalidate queries to refresh model lists
+      queryClient.invalidateQueries({ queryKey: ['models', variables.provider] });
+      queryClient.invalidateQueries({ queryKey: ['models', 'featured', variables.provider] });
+      setShowSettingsModal(false);
+    },
+  });
+
+  // Initialize featuredConfigs when modal opens and data loads
+  useEffect(() => {
+    if (showSettingsModal && featuredData) {
+      setFeaturedConfigs(
+        featuredData.models.map((m) => ({
+          model_id: m.model_id,
+          display_name: m.display_name || undefined,
+          sort_order: m.sort_order,
+        }))
+      );
+    }
+  }, [showSettingsModal, featuredData]);
 
   useEffect(() => {
     // Skip auto-select if an initial model was provided
@@ -90,6 +135,208 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
     if (!model.is_configured || disabled) return;
     setSelectedModel(model.model_name);
     onSelect(selectedProvider, model.model_name);
+  };
+
+  // Settings modal helpers
+  const openSettings = (provider: 'anthropic' | 'openai', e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSettingsProvider(provider);
+    setFeaturedConfigs([]);
+    setShowSettingsModal(true);
+  };
+
+  const toggleFeatured = (modelId: string) => {
+    setFeaturedConfigs((prev) => {
+      const exists = prev.find((m) => m.model_id === modelId);
+      if (exists) {
+        return prev.filter((m) => m.model_id !== modelId);
+      } else {
+        return [...prev, { model_id: modelId, sort_order: prev.length }];
+      }
+    });
+  };
+
+  const updateDisplayName = (modelId: string, displayName: string) => {
+    setFeaturedConfigs((prev) =>
+      prev.map((m) =>
+        m.model_id === modelId
+          ? { ...m, display_name: displayName || undefined }
+          : m
+      )
+    );
+  };
+
+  const saveFeaturedModels = () => {
+    updateFeaturedMutation.mutate({
+      provider: settingsProvider,
+      models: featuredConfigs.map((m, idx) => ({ ...m, sort_order: idx })),
+    });
+  };
+
+  // Get all models for the settings modal
+  const getAllModelsForSettings = (): ModelForConfig[] => {
+    if (settingsProvider === 'anthropic' && anthropicData?.is_configured) {
+      return [
+        ...anthropicData.featured_models,
+        ...anthropicData.other_models,
+      ].map((m) => ({ id: m.id, display_name: m.display_name, family: m.family }));
+    }
+    if (settingsProvider === 'openai' && openaiData?.is_configured) {
+      return [
+        ...openaiData.featured_models,
+        ...openaiData.other_models,
+      ].map((m) => ({ id: m.id, display_name: m.display_name, family: m.family }));
+    }
+    return [];
+  };
+
+  // Settings Modal Component
+  const renderSettingsModal = () => {
+    if (!showSettingsModal) return null;
+
+    const allModels = getAllModelsForSettings();
+    const featuredIds = new Set(featuredConfigs.map((m) => m.model_id));
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div
+          className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
+          style={{ border: '1px solid var(--slate-200)' }}
+        >
+          {/* Modal Header */}
+          <div
+            className="flex items-center justify-between p-4 border-b"
+            style={{ borderColor: 'var(--slate-200)' }}
+          >
+            <div>
+              <h3 className="font-semibold text-lg" style={{ color: 'var(--slate-900)' }}>
+                Configure Featured Models
+              </h3>
+              <p className="text-sm" style={{ color: 'var(--slate-500)' }}>
+                {settingsProvider === 'anthropic' ? 'Anthropic (Claude)' : 'OpenAI (GPT)'} - Select models to feature prominently
+              </p>
+            </div>
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              <X className="h-5 w-5" style={{ color: 'var(--slate-500)' }} />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 140px)' }}>
+            {allModels.length === 0 ? (
+              <div className="text-center py-8" style={{ color: 'var(--slate-500)' }}>
+                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                Loading models...
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm mb-3" style={{ color: 'var(--slate-600)' }}>
+                  Check models to feature. Featured models appear prominently; others go under "More models".
+                </p>
+                {allModels.map((model) => {
+                  const isFeatured = featuredIds.has(model.id);
+                  const config = featuredConfigs.find((m) => m.model_id === model.id);
+
+                  return (
+                    <div
+                      key={model.id}
+                      className="p-3 rounded-lg border transition-colors"
+                      style={{
+                        borderColor: isFeatured ? 'var(--accelerant-blue)' : 'var(--slate-200)',
+                        backgroundColor: isFeatured ? 'var(--accelerant-blue-light)' : 'white',
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isFeatured}
+                          onChange={() => toggleFeatured(model.id)}
+                          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm" style={{ color: 'var(--slate-900)' }}>
+                              {model.id}
+                            </span>
+                            {model.family && (
+                              <span
+                                className="text-xs px-1.5 py-0.5 rounded"
+                                style={{ backgroundColor: 'var(--slate-100)', color: 'var(--slate-600)' }}
+                              >
+                                {model.family}
+                              </span>
+                            )}
+                          </div>
+                          {isFeatured && (
+                            <div className="mt-2">
+                              <label className="text-xs" style={{ color: 'var(--slate-500)' }}>
+                                Custom display name (optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={config?.display_name || ''}
+                                onChange={(e) => updateDisplayName(model.id, e.target.value)}
+                                placeholder={model.display_name}
+                                className="mt-1 w-full px-2 py-1 text-sm rounded border focus:outline-none focus:ring-2"
+                                style={{
+                                  borderColor: 'var(--slate-300)',
+                                  backgroundColor: 'white',
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div
+            className="flex items-center justify-between p-4 border-t"
+            style={{ borderColor: 'var(--slate-200)', backgroundColor: 'var(--slate-50)' }}
+          >
+            <span className="text-sm" style={{ color: 'var(--slate-600)' }}>
+              {featuredConfigs.length} model{featuredConfigs.length !== 1 ? 's' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                style={{
+                  backgroundColor: 'white',
+                  border: '1px solid var(--slate-300)',
+                  color: 'var(--slate-700)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveFeaturedModels}
+                disabled={updateFeaturedMutation.isPending}
+                className="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                style={{
+                  backgroundColor: 'var(--accelerant-blue)',
+                  color: 'white',
+                  opacity: updateFeaturedMutation.isPending ? 0.7 : 1,
+                }}
+              >
+                {updateFeaturedMutation.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (isPickerLoading) {
@@ -465,53 +712,67 @@ export default function ModelPicker({ onSelect, disabled = false, initialModel =
   };
 
   return (
-    <div className="space-y-4">
-      <div 
-        className="flex border-b"
-        style={{ borderColor: 'var(--slate-200)' }}
-      >
-        {providers.map((provider) => {
-          const isConfigured = pickerData?.configured_providers?.includes(provider) ?? false;
-          const isActive = selectedProvider === provider;
+    <>
+      {renderSettingsModal()}
+      <div className="space-y-4">
+        <div
+          className="flex border-b"
+          style={{ borderColor: 'var(--slate-200)' }}
+        >
+          {providers.map((provider) => {
+            const isConfigured = pickerData?.configured_providers?.includes(provider) ?? false;
+            const isActive = selectedProvider === provider;
+            const showGear = (provider === 'anthropic' || provider === 'openai') && isConfigured && isActive;
 
-          return (
-            <button
-              key={provider}
-              onClick={() => handleProviderChange(provider)}
-              disabled={disabled}
-              className="flex-1 px-2 py-2 text-center border-b-2 transition-colors"
-              style={{
-                borderColor: isActive ? 'var(--accelerant-blue)' : 'transparent',
-                cursor: disabled ? 'not-allowed' : 'pointer',
-              }}
-            >
-              <span 
-                className="text-sm font-medium block"
-                style={{ 
-                  color: isActive ? 'var(--accelerant-blue)' : 'var(--slate-600)',
-                  opacity: !isConfigured ? 0.6 : 1,
+            return (
+              <button
+                key={provider}
+                onClick={() => handleProviderChange(provider)}
+                disabled={disabled}
+                className="flex-1 px-2 py-2 text-center border-b-2 transition-colors"
+                style={{
+                  borderColor: isActive ? 'var(--accelerant-blue)' : 'transparent',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
                 }}
               >
-                {providerLabels[provider]}
-              </span>
-              {!isConfigured && (
-                <span 
-                  className="text-xs block mt-0.5"
-                  style={{ color: 'var(--slate-400)' }}
+                <span
+                  className="text-sm font-medium inline-flex items-center justify-center gap-1.5"
+                  style={{
+                    color: isActive ? 'var(--accelerant-blue)' : 'var(--slate-600)',
+                    opacity: !isConfigured ? 0.6 : 1,
+                  }}
                 >
-                  (not configured)
+                  {providerLabels[provider]}
+                  {showGear && (
+                    <Settings
+                      className="h-3.5 w-3.5 cursor-pointer hover:opacity-70 transition-opacity"
+                      style={{ color: 'var(--slate-400)' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openSettings(provider as 'anthropic' | 'openai', e);
+                      }}
+                    />
+                  )}
                 </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                {!isConfigured && (
+                  <span
+                    className="text-xs block mt-0.5"
+                    style={{ color: 'var(--slate-400)' }}
+                  >
+                    (not configured)
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-      {selectedProvider === 'anthropic'
-        ? renderAnthropicModels()
-        : selectedProvider === 'openai'
-          ? renderOpenAIModels()
-          : renderLegacyModels()}
-    </div>
+        {selectedProvider === 'anthropic'
+          ? renderAnthropicModels()
+          : selectedProvider === 'openai'
+            ? renderOpenAIModels()
+            : renderLegacyModels()}
+      </div>
+    </>
   );
 }

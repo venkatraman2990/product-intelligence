@@ -637,6 +637,7 @@ def _build_product_info(gwp: GWPBreakdown) -> ProductInfo:
         sub_product={"code": gwp.sub_product.sub_product_id, "name": gwp.sub_product.name},
         mpp={"code": gwp.member_product_program.mpp_id, "name": gwp.member_product_program.name},
         total_gwp=str(gwp.total_gwp),
+        loss_ratio=str(gwp.loss_ratio) if gwp.loss_ratio else None,
     )
 
 

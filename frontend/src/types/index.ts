@@ -120,6 +120,7 @@ export interface GWPTreeNode {
   name: string;
   level: 'lob' | 'cob' | 'product' | 'sub_product' | 'mpp';
   total_gwp: string;
+  loss_ratio?: string;
   children: GWPTreeNode[];
   gwp_breakdown_ids?: string[];
 }

@@ -31,6 +31,7 @@ interface ProductCombination {
   sub_product: { code: string; name: string };
   mpp: { code: string; name: string };
   total_gwp: string;
+  loss_ratio?: string;
 }
 
 export default function MemberDetailPage() {
@@ -75,7 +76,7 @@ export default function MemberDetailPage() {
           if (!productNode.children) continue;
           for (const subProductNode of productNode.children as { code: string; name: string; children?: unknown[]; total_gwp?: string; gwp_breakdown_ids?: string[] }[]) {
             if (!subProductNode.children) continue;
-            for (const mppNode of subProductNode.children as { code: string; name: string; total_gwp?: string; gwp_breakdown_ids?: string[] }[]) {
+            for (const mppNode of subProductNode.children as { code: string; name: string; total_gwp?: string; loss_ratio?: string; gwp_breakdown_ids?: string[] }[]) {
               productCombinations.push({
                 id: mppNode.gwp_breakdown_ids?.[0] || `${lobNode.code}-${cobNode.code}-${productNode.code}-${subProductNode.code}-${mppNode.code}`,
                 cob: { code: cobNode.code, name: cobNode.name },
@@ -84,6 +85,7 @@ export default function MemberDetailPage() {
                 sub_product: { code: subProductNode.code, name: subProductNode.name },
                 mpp: { code: mppNode.code, name: mppNode.name },
                 total_gwp: mppNode.total_gwp || '0',
+                loss_ratio: mppNode.loss_ratio,
               });
             }
           }
@@ -258,6 +260,7 @@ export default function MemberDetailPage() {
                     <th className="table-header text-left py-3 px-4">Sub Product</th>
                     <th className="table-header text-left py-3 px-4">Member Program</th>
                     <th className="table-header text-right py-3 px-4">2025 GWP</th>
+                    <th className="table-header text-right py-3 px-4">Loss Ratio</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -292,8 +295,15 @@ export default function MemberDetailPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className="font-medium text-green-600">
+                        <span className="text-slate-700">
                           {formatCurrency(combo.total_gwp)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <span className="text-slate-700">
+                          {combo.loss_ratio
+                            ? `${(parseFloat(combo.loss_ratio) * 100).toFixed(1)}%`
+                            : '—'}
                         </span>
                       </td>
                     </tr>

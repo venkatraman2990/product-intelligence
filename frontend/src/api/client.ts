@@ -135,13 +135,35 @@ export interface OpenAIModelsResponse {
   other_models: OpenAIModel[];
 }
 
+// Featured model configuration
+export interface FeaturedModelConfig {
+  model_id: string;
+  display_name?: string;
+  sort_order: number;
+}
+
+export interface FeaturedModelResponse {
+  id: string;
+  provider: string;
+  model_id: string;
+  display_name?: string;
+  sort_order: number;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface FeaturedModelsResponse {
+  provider: string;
+  models: FeaturedModelResponse[];
+}
+
 // Models endpoint
 export const modelsApi = {
   getAll: async (): Promise<ModelsResponse> => {
     const response = await api.get('/api/models/picker');
     return response.data;
   },
-  
+
   getAnthropic: async (): Promise<AnthropicModelsResponse> => {
     const response = await api.get('/api/models/anthropic');
     return response.data;
@@ -149,6 +171,16 @@ export const modelsApi = {
 
   getOpenAI: async (): Promise<OpenAIModelsResponse> => {
     const response = await api.get('/api/models/openai');
+    return response.data;
+  },
+
+  getFeatured: async (provider: string): Promise<FeaturedModelsResponse> => {
+    const response = await api.get(`/api/models/featured/${provider}`);
+    return response.data;
+  },
+
+  updateFeatured: async (provider: string, models: FeaturedModelConfig[]): Promise<FeaturedModelsResponse> => {
+    const response = await api.put('/api/models/featured', { provider, models });
     return response.data;
   },
 };
@@ -177,6 +209,7 @@ export interface ProductInfo {
   sub_product: { code: string; name: string };
   mpp: { code: string; name: string };
   total_gwp: string;
+  loss_ratio?: string;
 }
 
 export interface ContractProductLink {
