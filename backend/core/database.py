@@ -33,7 +33,7 @@ def get_db():
 def init_db():
     """Initialize database tables."""
     # Import all models to register them
-    from backend.models import contract, extraction, member  # noqa: F401
+    from backend.models import contract, extraction, member, portfolio  # noqa: F401
 
     # Create all tables
     Base.metadata.create_all(bind=engine)

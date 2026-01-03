@@ -13,6 +13,10 @@ import type {
   GWPTreeResponse,
   MemberContractListResponse,
   MemberContract,
+  Portfolio,
+  PortfolioListResponse,
+  InsuranceProductListResponse,
+  PortfolioItem,
 } from '../types';
 
 const API_BASE_URL = '';
@@ -594,6 +598,97 @@ export const promptsApi = {
 
   getDefault: async (promptKey: string): Promise<{ prompt_key: string; default_content: string }> => {
     const response = await api.get(`/api/prompts/${promptKey}/default`);
+    return response.data;
+  },
+};
+
+// ============================================
+// PORTFOLIO TYPES & API
+// ============================================
+
+export interface PortfolioCreate {
+  name: string;
+  description?: string;
+  items?: Array<{
+    authority_id: string;
+    allocation_pct: number;
+  }>;
+}
+
+export interface PortfolioUpdate {
+  name?: string;
+  description?: string;
+  items?: Array<{
+    authority_id: string;
+    allocation_pct: number;
+  }>;
+}
+
+export interface PortfolioItemCreate {
+  authority_id: string;
+  allocation_pct: number;
+}
+
+export const portfoliosApi = {
+  // List all portfolios
+  list: async (search?: string): Promise<PortfolioListResponse> => {
+    const response = await api.get('/api/portfolios', {
+      params: { search },
+    });
+    return response.data;
+  },
+
+  // Get a single portfolio
+  get: async (id: string): Promise<Portfolio> => {
+    const response = await api.get(`/api/portfolios/${id}`);
+    return response.data;
+  },
+
+  // Create a new portfolio
+  create: async (data: PortfolioCreate): Promise<Portfolio> => {
+    const response = await api.post('/api/portfolios', data);
+    return response.data;
+  },
+
+  // Update a portfolio
+  update: async (id: string, data: PortfolioUpdate): Promise<Portfolio> => {
+    const response = await api.put(`/api/portfolios/${id}`, data);
+    return response.data;
+  },
+
+  // Delete a portfolio
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/api/portfolios/${id}`);
+  },
+
+  // Add item to portfolio
+  addItem: async (portfolioId: string, item: PortfolioItemCreate): Promise<PortfolioItem> => {
+    const response = await api.post(`/api/portfolios/${portfolioId}/items`, item);
+    return response.data;
+  },
+
+  // Update item allocation
+  updateItem: async (portfolioId: string, itemId: string, allocation_pct: number): Promise<PortfolioItem> => {
+    const response = await api.put(`/api/portfolios/${portfolioId}/items/${itemId}`, {
+      allocation_pct,
+    });
+    return response.data;
+  },
+
+  // Remove item from portfolio
+  removeItem: async (portfolioId: string, itemId: string): Promise<void> => {
+    await api.delete(`/api/portfolios/${portfolioId}/items/${itemId}`);
+  },
+
+  // List insurance products (for product selection)
+  listProducts: async (params?: {
+    search?: string;
+    lob?: string;
+    cob?: string;
+    skip?: number;
+    limit?: number;
+  }): Promise<InsuranceProductListResponse> => {
+    const response = await api.get('/api/portfolios/products/list', { params });
     return response.data;
   },
 };

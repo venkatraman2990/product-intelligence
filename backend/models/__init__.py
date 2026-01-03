@@ -13,6 +13,7 @@ from backend.models.member import (
     MemberContract,
     ContractTermMapping,
 )
+from backend.models.portfolio import Portfolio, PortfolioItem
 
 __all__ = [
     "Contract",
@@ -28,4 +29,6 @@ __all__ = [
     "GWPBreakdown",
     "MemberContract",
     "ContractTermMapping",
+    "Portfolio",
+    "PortfolioItem",
 ]

@@ -148,3 +148,83 @@ export interface MemberContractListResponse {
   contracts: MemberContract[];
   total: number;
 }
+
+// Portfolio types
+export interface AuthorityProductInfo {
+  id: string;
+  lob_name: string;
+  cob_name: string;
+  product_name: string;
+  sub_product_name: string;
+  mpp_name: string;
+  contract_name: string;
+  total_gwp: string | null;
+  loss_ratio: string | null;
+  extracted_data: Record<string, unknown>;
+}
+
+export interface PortfolioItem {
+  id: string;
+  portfolio_id: string;
+  authority_id: string;
+  allocation_pct: string;
+  created_at: string;
+  authority: AuthorityProductInfo;
+}
+
+export interface PortfolioSummary {
+  total_premium: string;
+  max_annual_premium: string;
+  avg_loss_ratio: string | null;
+  avg_limit: string | null;
+  growth_potential_pct: string | null;
+  total_allocation: string;
+}
+
+export interface Portfolio {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string | null;
+  items: PortfolioItem[];
+  summary: PortfolioSummary;
+}
+
+export interface PortfolioListItem {
+  id: string;
+  name: string;
+  description: string | null;
+  item_count: number;
+  total_premium: string;
+  avg_loss_ratio: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface PortfolioListResponse {
+  portfolios: PortfolioListItem[];
+  total: number;
+}
+
+export interface InsuranceProduct {
+  id: string;
+  product_name: string;
+  lob_name: string;
+  cob_name: string;
+  full_product_name: string;
+  sub_product_name: string;
+  mpp_name: string;
+  premium_volume: string | null;
+  loss_ratio: string | null;
+  contract_name: string;
+  member_id: string;
+  extracted_data: Record<string, unknown>;
+}
+
+export interface InsuranceProductListResponse {
+  products: InsuranceProduct[];
+  total: number;
+  lob_options: string[];
+  cob_options: string[];
+}

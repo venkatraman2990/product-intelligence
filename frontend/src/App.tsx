@@ -10,6 +10,9 @@ import MembersPage from './pages/MembersPage';
 import MemberDetailPage from './pages/MemberDetailPage';
 import AuthoritiesPage from './pages/AuthoritiesPage';
 import AuthorityDetailPage from './pages/AuthorityDetailPage';
+import InsuranceProductsPage from './pages/InsuranceProductsPage';
+import PortfoliosPage from './pages/PortfoliosPage';
+import PortfolioDetailPage from './pages/PortfolioDetailPage';
 import SettingsPage from './pages/SettingsPage';
 import SystemPromptsPage from './pages/SystemPromptsPage';
 import { SettingsProvider } from './contexts/SettingsContext';
@@ -39,6 +42,10 @@ function App() {
               <Route path="members/:id" element={<MemberDetailPage />} />
               <Route path="authorities" element={<AuthoritiesPage />} />
               <Route path="authorities/:id" element={<AuthorityDetailPage />} />
+              <Route path="products" element={<InsuranceProductsPage />} />
+              <Route path="portfolios" element={<PortfoliosPage />} />
+              <Route path="portfolios/new" element={<PortfolioDetailPage />} />
+              <Route path="portfolios/:id" element={<PortfolioDetailPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="system-prompts" element={<SystemPromptsPage />} />
             </Route>

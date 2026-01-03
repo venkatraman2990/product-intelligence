@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from backend.api.routes import contracts, extractions, models, exports, members, authorities, prompts
+from backend.api.routes import contracts, extractions, models, exports, members, authorities, prompts, portfolios
 
 api_router = APIRouter()
 
@@ -13,3 +13,4 @@ api_router.include_router(exports.router, prefix="/exports", tags=["exports"])
 api_router.include_router(members.router, prefix="/members", tags=["members"])
 api_router.include_router(authorities.router, prefix="/authorities", tags=["authorities"])
 api_router.include_router(prompts.router, prefix="/prompts", tags=["prompts"])
+api_router.include_router(portfolios.router, prefix="/portfolios", tags=["portfolios"])
