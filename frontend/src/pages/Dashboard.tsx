@@ -110,18 +110,18 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {stats.map((stat) => (
-          <div key={stat.name} className="card flex items-center">
+          <div key={stat.name} className="card flex items-center p-3 min-w-0">
             <div
-              className="p-3 rounded-xl"
+              className="p-2 rounded-lg flex-shrink-0"
               style={{ backgroundColor: stat.bgColor }}
             >
-              <stat.icon className="h-6 w-6" style={{ color: stat.iconColor }} />
+              <stat.icon className="h-5 w-5" style={{ color: stat.iconColor }} />
             </div>
-            <div className="ml-4">
-              <p className="text-sm" style={{ color: 'var(--slate-500)' }}>{stat.name}</p>
-              <p className="text-2xl font-semibold" style={{ color: 'var(--slate-900)' }}>
+            <div className="ml-2 min-w-0 overflow-hidden">
+              <p className="text-xs leading-tight truncate" style={{ color: 'var(--slate-500)' }}>{stat.name}</p>
+              <p className="text-lg font-semibold" style={{ color: 'var(--slate-900)' }}>
                 {(isLoading || statsLoading) ? '-' : stat.value}
               </p>
             </div>
