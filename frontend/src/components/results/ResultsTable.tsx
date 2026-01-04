@@ -22,9 +22,10 @@ const fieldCategories: Record<string, string[]> = {
     'lines_of_business', 'coverage_types', 'policy_forms', 'endorsements',
     'exclusions', 'sub_limits'
   ],
-  'Limits & Retention': [
+  'Limits and Deductibles': [
     'minimum_limit', 'maximum_limit', 'minimum_retention', 'maximum_retention',
-    'aggregate_limits', 'per_occurrence_limits'
+    'aggregate_limits', 'per_occurrence_limits', 'max_policy_limit', 'max_location_limit',
+    'max_limits_of_liability', 'deductible_options', 'deductible_min', 'deductible_max'
   ],
   'Premium & Rating': [
     'minimum_premium', 'rate_basis', 'commission_rate', 'expense_allowance',
