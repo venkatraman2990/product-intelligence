@@ -126,8 +126,8 @@ export default function Dashboard() {
               <stat.icon className="h-5 w-5" style={{ color: stat.iconColor }} />
             </div>
             <div className="ml-2 min-w-0 overflow-hidden">
-              <p className="text-xs leading-tight truncate" style={{ color: 'var(--slate-500)' }}>{stat.name}</p>
-              <p className="text-lg font-semibold" style={{ color: 'var(--slate-900)' }}>
+              <p className="text-sm leading-tight truncate" style={{ color: 'var(--slate-500)' }}>{stat.name}</p>
+              <p className="text-xl font-semibold" style={{ color: 'var(--slate-900)' }}>
                 {(isLoading || statsLoading) ? '-' : stat.value}
               </p>
             </div>
