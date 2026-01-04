@@ -173,7 +173,7 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
 
       {viewMode === 'table' ? (
         <div>
-          {Object.keys(fieldCategories).map((category) => {
+          {Object.keys(fieldCategories).filter(c => c !== 'Metadata').map((category) => {
             const fields = getCategoryFields(category);
             if (fields.length === 0) return null;
 
@@ -295,6 +295,71 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
               )}
             </div>
           )}
+
+          {(() => {
+            const category = 'Metadata';
+            const fields = getCategoryFields(category);
+            if (fields.length === 0) return null;
+            const isExpanded = expandedCategories.has(category);
+
+            return (
+              <div key={category} className="border-b" style={{ borderColor: 'var(--slate-200)' }}>
+                <button
+                  onClick={() => toggleCategory(category)}
+                  className="w-full px-5 py-3 flex items-center justify-between transition-colors"
+                  style={{ backgroundColor: 'var(--slate-50)' }}
+                >
+                  <div className="flex items-center">
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 mr-2" style={{ color: 'var(--slate-400)' }} />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 mr-2" style={{ color: 'var(--slate-400)' }} />
+                    )}
+                    <span className="text-sm font-medium" style={{ color: 'var(--slate-600)' }}>{category}</span>
+                  </div>
+                  <span className="text-xs" style={{ color: 'var(--slate-500)' }}>{fields.length} fields</span>
+                </button>
+                {isExpanded && (
+                  <table className="w-full">
+                    <tbody>
+                      {fields.map(({ key, value }) => (
+                        <tr 
+                          key={key} 
+                          className="border-t transition-colors"
+                          style={{ borderColor: 'var(--slate-100)' }}
+                        >
+                          <td 
+                            className="px-5 py-3 text-sm font-medium w-1/3"
+                            style={{ color: 'var(--slate-600)' }}
+                          >
+                            {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </td>
+                          <td 
+                            className="px-5 py-3 text-sm"
+                            style={{ color: 'var(--slate-900)' }}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <span>{formatValue(value)}</span>
+                              {citations[key] && documentText && (
+                                <button
+                                  onClick={() => openCitation(key)}
+                                  className="shrink-0 p-1 rounded transition-colors hover:bg-blue-50"
+                                  style={{ color: 'var(--accelerant-blue)' }}
+                                  title="View source in document"
+                                >
+                                  <Quote className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })()}
         </div>
       ) : (
         <pre 
