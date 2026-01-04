@@ -5,12 +5,12 @@ import accelerantLogo from '../assets/accelerant-logo-transparent.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
-  { name: 'Members', href: '/members', icon: Users },
-  { name: 'Authority', href: '/authorities', icon: Shield },
-  { name: 'Products', href: '/products', icon: Package },
   { name: 'Portfolios', href: '/portfolios', icon: Briefcase },
-  { name: 'Upload', href: '/upload', icon: Upload },
+  { name: 'Members', href: '/members', icon: Users },
+  { name: 'Products', href: '/products', icon: Package },
+  { name: 'Authority', href: '/authorities', icon: Shield },
   { name: 'Contracts', href: '/contracts', icon: FileText },
+  { name: 'Upload', href: '/upload', icon: Upload },
 ];
 
 export default function Layout() {
