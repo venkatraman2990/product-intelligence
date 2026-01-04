@@ -10,8 +10,10 @@ interface ResultsTableProps {
 }
 
 const fieldCategories: Record<string, string[]> = {
+  'Contract Overview': [
+    'member_name', 'product_name', 'product_description', 'effective_date'
+  ],
   'Metadata': [
-    'member_name', 'product_name', 'product_description', 'effective_date',
     'document_source', 'extraction_timestamp'
   ],
   'Territory': [
@@ -53,7 +55,7 @@ const fieldCategories: Record<string, string[]> = {
 export default function ResultsTable({ data, notes = [], documentText = '', contractId = '' }: ResultsTableProps) {
   const [viewMode, setViewMode] = useState<'table' | 'json'>('table');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(['Metadata', 'Territory', 'Coverage'])
+    new Set(['Contract Overview', 'Metadata', 'Territory', 'Coverage'])
   );
   const [copied, setCopied] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
