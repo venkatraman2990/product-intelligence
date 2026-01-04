@@ -11,13 +11,13 @@ interface ResultsTableProps {
 
 const fieldCategories: Record<string, string[]> = {
   'Contract Overview': [
-    'member_name', 'product_name', 'product_description', 'effective_date'
+    'member_name', 'product_name', 'product_description', 'effective_date', 'admitted_status'
   ],
   'Metadata': [
     'document_source', 'extraction_timestamp'
   ],
   'Territory': [
-    'permitted_states', 'excluded_states', 'admitted_status', 'territorial_scope',
+    'permitted_states', 'excluded_states', 'territorial_scope',
     'geographic_limitations'
   ],
   'Coverage': [
