@@ -224,7 +224,7 @@ class ContractData(BaseModel):
         default_factory=list,
         description="Notes or warnings from extraction"
     )
-    citations: dict[str, str] = Field(
+    citations: dict[str, str | None] = Field(
         default_factory=dict,
         description="Source text citations for each extracted field"
     )

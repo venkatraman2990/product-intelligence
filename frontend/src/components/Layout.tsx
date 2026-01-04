@@ -6,7 +6,7 @@ import accelerantLogo from '../assets/accelerant-logo-transparent.png';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: BarChart3 },
   { name: 'Members', href: '/members', icon: Users },
-  { name: 'Authorities', href: '/authorities', icon: Shield },
+  { name: 'Authority', href: '/authorities', icon: Shield },
   { name: 'Products', href: '/products', icon: Package },
   { name: 'Portfolios', href: '/portfolios', icon: Briefcase },
   { name: 'Upload', href: '/upload', icon: Upload },
