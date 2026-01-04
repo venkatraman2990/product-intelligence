@@ -25,7 +25,8 @@ const fieldCategories: Record<string, string[]> = {
   'Limits and Deductibles': [
     'minimum_limit', 'maximum_limit', 'minimum_retention', 'maximum_retention',
     'aggregate_limits', 'per_occurrence_limits', 'max_policy_limit', 'max_location_limit',
-    'max_limits_of_liability', 'deductible_options', 'deductible_min', 'deductible_max'
+    'max_limits_of_liability', 'deductible_options', 'deductible_min', 'deductible_max',
+    'max_revenue_per_insured', 'max_tiv_per_insured', 'max_locations_per_insured'
   ],
   'Premium & Rating': [
     'minimum_premium', 'rate_basis', 'commission_rate', 'expense_allowance',
