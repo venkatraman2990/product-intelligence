@@ -1,6 +1,6 @@
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { FileText, Upload, Clock, CheckCircle, ChevronRight, Users, Package } from 'lucide-react';
+import { FileText, Upload, Clock, CheckCircle, ChevronRight, Users, Package, Plus } from 'lucide-react';
 import { contractsApi, membersApi } from '../api/client';
 
 export default function Dashboard() {
@@ -104,10 +104,16 @@ export default function Dashboard() {
           <h1 className="page-title">Dashboard</h1>
           <p className="text-description mt-1">Accelerant Risk Exchange Insurance Product Control Tower</p>
         </div>
-        <Link to="/upload" className="btn-primary">
-          <Upload className="h-4 w-4" />
-          Upload Contract
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link to="/portfolios/new" className="btn-primary">
+            <Plus className="h-4 w-4" />
+            New Portfolio
+          </Link>
+          <Link to="/upload" className="btn-primary">
+            <Upload className="h-4 w-4" />
+            Upload Contract
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
