@@ -33,7 +33,8 @@ const fieldCategories: Record<string, string[]> = {
     'profit_commission'
   ],
   'Premium Information': [
-    'max_annual_premium', 'max_premium_per_insured', 'min_premium_per_insured'
+    'max_annual_premium', 'max_premium_per_insured', 'min_premium_per_insured',
+    'max_policy_period'
   ],
   'Underwriting': [
     'risk_appetite', 'prohibited_risks', 'required_documentation',
