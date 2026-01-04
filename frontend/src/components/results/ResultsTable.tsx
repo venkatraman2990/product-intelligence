@@ -32,6 +32,9 @@ const fieldCategories: Record<string, string[]> = {
     'minimum_premium', 'rate_basis', 'commission_rate', 'expense_allowance',
     'profit_commission'
   ],
+  'Premium Information': [
+    'max_annual_premium', 'max_premium_per_insured', 'min_premium_per_insured'
+  ],
   'Underwriting': [
     'risk_appetite', 'prohibited_risks', 'required_documentation',
     'underwriting_authority', 'binding_authority'
