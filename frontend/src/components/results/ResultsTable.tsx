@@ -38,6 +38,10 @@ const fieldCategories: Record<string, string[]> = {
     'claims_handling', 'notice_requirements', 'claims_authority',
     'settlement_authority', 'claims_reporting'
   ],
+  'Classes and Operations': [
+    'target_classes', 'eligible_classes', 'excluded_classes',
+    'target_operations', 'eligible_operations', 'ineligible_operations'
+  ],
 };
 
 export default function ResultsTable({ data, notes = [], documentText = '', contractId = '' }: ResultsTableProps) {
