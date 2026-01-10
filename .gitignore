@@ -38,4 +38,5 @@ frontend/dist/
 
 # Database files
 *.db
-.claude-user/
+**/.claude-user/
+**/.*.claude-user/
