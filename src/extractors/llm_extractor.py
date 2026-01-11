@@ -242,8 +242,12 @@ class LLMExtractor(BaseExtractor):
             product_name=meta_data.get("product_name") or extraction.get("product_name"),
             product_description=meta_data.get("product_description") or extraction.get("product_description"),
             effective_date=self._parse_date(meta_data.get("effective_date") or extraction.get("effective_date")),
+            expiration_date=self._parse_date(meta_data.get("expiration_date") or extraction.get("expiration_date")),
             document_source=str(source_path),
             extraction_timestamp=datetime.now().isoformat(),
+            accelerant_agency=self._safe_string(meta_data.get("accelerant_agency") or extraction.get("accelerant_agency")),
+            carrier=self._safe_string(meta_data.get("carrier") or extraction.get("carrier")),
+            insurer_branch=self._safe_string(meta_data.get("insurer_branch") or extraction.get("insurer_branch")),
         )
 
         # Parse territory (use nested data or fall back to flat)
@@ -286,6 +290,9 @@ class LLMExtractor(BaseExtractor):
             max_revenue_per_insured=self._safe_float(premium_data.get("max_revenue_per_insured") or extraction.get("max_revenue_per_insured")),
             max_tiv_per_insured=self._safe_float(premium_data.get("max_tiv_per_insured") or extraction.get("max_tiv_per_insured")),
             max_locations_per_insured=self._safe_int(premium_data.get("max_locations_per_insured") or extraction.get("max_locations_per_insured")),
+            commission_rate=self._safe_string(premium_data.get("commission_rate") or extraction.get("commission_rate")),
+            premium_cap_basis=self._safe_string(premium_data.get("premium_cap_basis") or extraction.get("premium_cap_basis")),
+            minimum_earned_premium=self._safe_string(premium_data.get("minimum_earned_premium") or extraction.get("minimum_earned_premium")),
         )
 
         # Parse underwriting requirements (use nested data or fall back to flat)
@@ -312,6 +319,8 @@ class LLMExtractor(BaseExtractor):
             rating_basis=self._safe_string(policy_data.get("rating_basis") or extraction.get("rating_basis")),
             max_policy_period=self._safe_string(policy_data.get("max_policy_period") or extraction.get("max_policy_period")),
             cancellation_provisions=self._safe_string(policy_data.get("cancellation_provisions") or extraction.get("cancellation_provisions")),
+            underwriting_year_start=self._safe_string(policy_data.get("underwriting_year_start") or extraction.get("underwriting_year_start")),
+            underwriting_year_end=self._safe_string(policy_data.get("underwriting_year_end") or extraction.get("underwriting_year_end")),
         )
 
         # Extract citations from response

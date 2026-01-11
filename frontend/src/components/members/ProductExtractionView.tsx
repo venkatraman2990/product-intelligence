@@ -120,12 +120,21 @@ export default function ProductExtractionView({
 
   // Analyze mutation
   const analyzeMutation = useMutation({
-    mutationFn: (force: boolean = false) =>
-      membersApi.analyzeProductExtraction({
-        contract_link_id: link.id,
-        model_provider: settings.mappingModelProvider,
-        force,
-      }),
+    mutationFn: async (force: boolean = false) => {
+      try {
+        return await membersApi.analyzeProductExtraction({
+          contract_link_id: link.id,
+          model_provider: settings.mappingModelProvider,
+          force,
+        });
+      } catch (error) {
+        // Extract clean error message to prevent circular reference issues
+        const message = error instanceof Error
+          ? error.message
+          : 'An unexpected error occurred during analysis';
+        throw new Error(message);
+      }
+    },
     onSuccess: (data) => {
       setExtraction(data);
       setIsAnalyzing(false);

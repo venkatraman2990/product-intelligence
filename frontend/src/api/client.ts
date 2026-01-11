@@ -28,6 +28,31 @@ const api = axios.create({
   },
 });
 
+// Add response interceptor to properly handle errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Extract a clean error message to avoid circular reference issues
+    let message = 'An error occurred';
+
+    if (error.response?.data?.detail) {
+      // FastAPI error format
+      message = error.response.data.detail;
+    } else if (error.response?.data?.message) {
+      message = error.response.data.message;
+    } else if (error.message) {
+      message = error.message;
+    } else if (error.response?.statusText) {
+      message = error.response.statusText;
+    }
+
+    // Create a simple error object without circular references
+    const cleanError = new Error(message);
+    cleanError.name = 'APIError';
+    return Promise.reject(cleanError);
+  }
+);
+
 // Contract endpoints
 export const contractsApi = {
   upload: async (file: File): Promise<UploadResponse> => {
@@ -450,12 +475,18 @@ export const membersApi = {
     model_provider?: string;
     force?: boolean;
   }): Promise<ProductExtractionResponse> => {
-    const response = await api.post('/api/members/product-extractions/analyze', {
-      ...data,
-      model_provider: data.model_provider || 'anthropic',
-      force: data.force || false,
-    });
-    return response.data;
+    try {
+      const response = await api.post('/api/members/product-extractions/analyze', {
+        ...data,
+        model_provider: data.model_provider || 'anthropic',
+        force: data.force || false,
+      });
+      return response.data;
+    } catch (error) {
+      // Ensure we throw a clean error without circular references
+      const message = error instanceof Error ? error.message : 'Analysis failed';
+      throw new Error(message);
+    }
   },
 
   getProductExtraction: async (linkId: string): Promise<ProductExtractionResponse> => {

@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Loader2,
@@ -12,6 +12,7 @@ import ResultsTable from '../components/results/ResultsTable';
 
 export default function ExtractionDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
 
   const {
     data: extraction,
@@ -185,6 +186,11 @@ export default function ExtractionDetailPage() {
           notes={extraction.extraction_notes}
           documentText={contract?.extracted_text || ''}
           contractId={extraction.contract_id}
+          extractionId={extraction.id}
+          editable={true}
+          onDataUpdate={() => {
+            queryClient.invalidateQueries({ queryKey: ['extraction', id] });
+          }}
         />
       )}
     </div>

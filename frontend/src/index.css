@@ -257,18 +257,17 @@ body {
   background: white !important;
 }
 
+/* Text layer - allow text selection */
 .react-pdf__Page__textContent {
   user-select: text;
 }
 
+/* Citation highlights - yellow background */
 .react-pdf__Page__textContent mark,
 .react-pdf__Page__textContent .citation-highlight {
   background-color: #FEF08A !important;
-  color: #854D0E !important;
-  padding: 2px 1px;
   border-radius: 2px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
+  padding: 1px 0;
 }
 
 /* Pulsing animation for newly highlighted citation */
@@ -302,4 +301,33 @@ body {
 
 .react-pdf__Page__annotations {
   pointer-events: none;
+}
+
+/* Search result highlights - different from citations (green) */
+.react-pdf__Page__textContent .search-highlight {
+  background-color: #BBF7D0 !important; /* green-200 */
+  color: #166534 !important; /* green-800 */
+  padding: 2px 1px;
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Active search result - more prominent */
+.react-pdf__Page__textContent .search-highlight.active {
+  background-color: #4ADE80 !important; /* green-400 */
+  box-shadow: 0 0 8px 2px rgba(74, 222, 128, 0.6);
+  animation: search-pulse 1s ease-in-out;
+}
+
+@keyframes search-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 12px 4px rgba(74, 222, 128, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 8px 2px rgba(74, 222, 128, 0.6);
+  }
 }

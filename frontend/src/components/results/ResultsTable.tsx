@@ -1,17 +1,25 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Code, Table, Copy, Check, Quote } from 'lucide-react';
+import { ChevronDown, ChevronRight, Code, Table, Copy, Check, Quote, Edit3, Save, X, Loader2 } from 'lucide-react';
 import DocumentViewer from './DocumentViewer';
+import { extractionsApi } from '../../api/client';
 
 interface ResultsTableProps {
   data: Record<string, unknown>;
   notes?: string[];
   documentText?: string;
   contractId?: string;
+  extractionId?: string;
+  editable?: boolean;
+  onDataUpdate?: () => void;
 }
 
 const fieldCategories: Record<string, string[]> = {
   'Contract Overview': [
-    'member_name', 'product_name', 'product_description', 'effective_date', 'admitted_status'
+    'member_name', 'product_name', 'product_description', 'effective_date',
+    'expiration_date', 'admitted_status'
+  ],
+  'Counterparties': [
+    'accelerant_agency', 'carrier', 'insurer_branch'
   ],
   'Metadata': [
     'document_source', 'extraction_timestamp'
@@ -30,17 +38,19 @@ const fieldCategories: Record<string, string[]> = {
     'max_limits_of_liability', 'deductible_options', 'deductible_min', 'deductible_max',
     'max_revenue_per_insured', 'max_tiv_per_insured', 'max_locations_per_insured'
   ],
-  'Premium & Rating': [
-    'minimum_premium', 'rate_basis', 'commission_rate', 'expense_allowance',
-    'profit_commission'
-  ],
   'Premium Information': [
     'max_annual_premium', 'max_premium_per_insured', 'min_premium_per_insured',
-    'max_policy_period'
+    'max_policy_period', 'premium_cap_basis', 'minimum_earned_premium'
+  ],
+  'Commission': [
+    'commission_rate'
   ],
   'Underwriting': [
     'risk_appetite', 'prohibited_risks', 'required_documentation',
     'underwriting_authority', 'binding_authority'
+  ],
+  'Underwriting Period': [
+    'underwriting_year_start', 'underwriting_year_end'
   ],
   'Claims': [
     'claims_handling', 'notice_requirements', 'claims_authority',
@@ -52,7 +62,15 @@ const fieldCategories: Record<string, string[]> = {
   ],
 };
 
-export default function ResultsTable({ data, notes = [], documentText = '', contractId = '' }: ResultsTableProps) {
+export default function ResultsTable({
+  data,
+  notes = [],
+  documentText = '',
+  contractId = '',
+  extractionId,
+  editable = false,
+  onDataUpdate
+}: ResultsTableProps) {
   const [viewMode, setViewMode] = useState<'table' | 'json'>('table');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(['Contract Overview', 'Metadata', 'Territory', 'Coverage'])
@@ -61,6 +79,12 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewField, setPreviewField] = useState<string>('');
   const [previewCitation, setPreviewCitation] = useState<string>('');
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedData, setEditedData] = useState<Record<string, unknown>>({});
+  const [editedCitations, setEditedCitations] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   const citations = (data._citations as Record<string, string>) || {};
   
@@ -94,6 +118,56 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
     }
   };
 
+  // Edit mode handlers
+  const handleStartEdit = () => {
+    setEditedData({ ...displayData });
+    setEditedCitations({ ...citations });  // Copy original citations
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedData({});
+    setEditedCitations({});
+    setIsEditing(false);
+  };
+
+  const handleFieldChange = (key: string, value: string) => {
+    setEditedData((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    // Remove citation for this field since value was manually edited
+    setEditedCitations((prev) => {
+      const updated = { ...prev };
+      delete updated[key];
+      return updated;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!extractionId) return;
+
+    setIsSaving(true);
+    try {
+      // Include updated citations in the save payload
+      const dataToSave = {
+        ...editedData,
+        _citations: editedCitations,
+      };
+      await extractionsApi.update(extractionId, dataToSave);
+      setIsEditing(false);
+      onDataUpdate?.();
+    } catch (error) {
+      console.error('Failed to save extraction data:', error);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Get the current data to display (edited or original)
+  const currentDisplayData = isEditing ? editedData : displayData;
+
   const formatValue = (value: unknown): string => {
     if (value === null || value === undefined) return '-';
     if (Array.isArray(value)) {
@@ -108,16 +182,16 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
   const getCategoryFields = (category: string): Array<{ key: string; value: unknown }> => {
     const fields = fieldCategories[category] || [];
     return fields
-      .filter((field) => field in displayData)
-      .map((field) => ({ key: field, value: displayData[field] }));
+      .filter((field) => field in currentDisplayData)
+      .map((field) => ({ key: field, value: currentDisplayData[field] }));
   };
 
   const categorizedFields = new Set(Object.values(fieldCategories).flat());
-  const uncategorizedFields = Object.entries(displayData)
+  const uncategorizedFields = Object.entries(currentDisplayData)
     .filter(([key]) => !categorizedFields.has(key) && key !== '_citations')
     .map(([key, value]) => ({ key, value }));
 
-  const fieldCount = Object.keys(displayData).length;
+  const fieldCount = Object.keys(currentDisplayData).length;
   const citationCount = Object.keys(citations).length;
 
   return (
@@ -134,40 +208,80 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
           <span className="count-badge">{fieldCount} fields</span>
         </div>
         <div className="flex items-center space-x-2">
-          <div 
-            className="flex rounded-lg p-0.5"
-            style={{ backgroundColor: 'var(--slate-200)' }}
-          >
-            <button
-              onClick={() => setViewMode('table')}
-              className="p-1.5 rounded-md transition-all"
-              style={{
-                backgroundColor: viewMode === 'table' ? 'white' : 'transparent',
-                boxShadow: viewMode === 'table' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                color: viewMode === 'table' ? 'var(--slate-900)' : 'var(--slate-500)',
-              }}
-            >
-              <Table className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('json')}
-              className="p-1.5 rounded-md transition-all"
-              style={{
-                backgroundColor: viewMode === 'json' ? 'white' : 'transparent',
-                boxShadow: viewMode === 'json' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
-                color: viewMode === 'json' ? 'var(--slate-900)' : 'var(--slate-500)',
-              }}
-            >
-              <Code className="h-4 w-4" />
-            </button>
-          </div>
-          <button
-            onClick={copyToClipboard}
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ color: 'var(--slate-500)' }}
-          >
-            {copied ? <Check className="h-4 w-4" style={{ color: 'var(--success-green)' }} /> : <Copy className="h-4 w-4" />}
-          </button>
+          {/* Edit mode buttons */}
+          {isEditing ? (
+            <>
+              <button
+                onClick={handleCancelEdit}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-colors"
+                style={{ borderColor: 'var(--slate-300)', color: 'var(--slate-600)' }}
+                disabled={isSaving}
+              >
+                <X className="h-3.5 w-3.5" />
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white transition-colors"
+                style={{ backgroundColor: 'var(--accelerant-blue)' }}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Save
+              </button>
+            </>
+          ) : (
+            <>
+              {editable && extractionId && (
+                <button
+                  onClick={handleStartEdit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-white transition-colors"
+                  style={{ backgroundColor: 'var(--accelerant-blue)' }}
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                  Edit
+                </button>
+              )}
+              <div
+                className="flex rounded-lg p-0.5"
+                style={{ backgroundColor: 'var(--slate-200)' }}
+              >
+                <button
+                  onClick={() => setViewMode('table')}
+                  className="p-1.5 rounded-md transition-all"
+                  style={{
+                    backgroundColor: viewMode === 'table' ? 'white' : 'transparent',
+                    boxShadow: viewMode === 'table' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                    color: viewMode === 'table' ? 'var(--slate-900)' : 'var(--slate-500)',
+                  }}
+                >
+                  <Table className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('json')}
+                  className="p-1.5 rounded-md transition-all"
+                  style={{
+                    backgroundColor: viewMode === 'json' ? 'white' : 'transparent',
+                    boxShadow: viewMode === 'json' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                    color: viewMode === 'json' ? 'var(--slate-900)' : 'var(--slate-500)',
+                  }}
+                >
+                  <Code className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                onClick={copyToClipboard}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: 'var(--slate-500)' }}
+              >
+                {copied ? <Check className="h-4 w-4" style={{ color: 'var(--success-green)' }} /> : <Copy className="h-4 w-4" />}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -211,13 +325,27 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
                           >
                             {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                           </td>
-                          <td 
+                          <td
                             className="px-5 py-3 text-sm"
                             style={{ color: 'var(--slate-900)' }}
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <span>{formatValue(value)}</span>
-                              {citations[key] && documentText && (
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={formatValue(value)}
+                                  onChange={(e) => handleFieldChange(key, e.target.value)}
+                                  className="w-full px-2 py-1 rounded border text-sm"
+                                  style={{
+                                    borderColor: 'var(--accelerant-blue)',
+                                    backgroundColor: 'white',
+                                    color: 'var(--slate-900)',
+                                  }}
+                                />
+                              ) : (
+                                <span>{formatValue(value)}</span>
+                              )}
+                              {citations[key] && documentText && !isEditing && (
                                 <button
                                   onClick={() => openCitation(key)}
                                   className="shrink-0 p-1 rounded transition-colors hover:bg-blue-50"
@@ -270,13 +398,27 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
                         >
                           {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                         </td>
-                        <td 
+                        <td
                           className="px-5 py-3 text-sm"
                           style={{ color: 'var(--slate-900)' }}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <span>{formatValue(value)}</span>
-                            {citations[key] && documentText && (
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={formatValue(value)}
+                                onChange={(e) => handleFieldChange(key, e.target.value)}
+                                className="w-full px-2 py-1 rounded border text-sm"
+                                style={{
+                                  borderColor: 'var(--accelerant-blue)',
+                                  backgroundColor: 'white',
+                                  color: 'var(--slate-900)',
+                                }}
+                              />
+                            ) : (
+                              <span>{formatValue(value)}</span>
+                            )}
+                            {citations[key] && documentText && !isEditing && (
                               <button
                                 onClick={() => openCitation(key)}
                                 className="shrink-0 p-1 rounded transition-colors hover:bg-blue-50"
@@ -334,13 +476,27 @@ export default function ResultsTable({ data, notes = [], documentText = '', cont
                           >
                             {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                           </td>
-                          <td 
+                          <td
                             className="px-5 py-3 text-sm"
                             style={{ color: 'var(--slate-900)' }}
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <span>{formatValue(value)}</span>
-                              {citations[key] && documentText && (
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={formatValue(value)}
+                                  onChange={(e) => handleFieldChange(key, e.target.value)}
+                                  className="w-full px-2 py-1 rounded border text-sm"
+                                  style={{
+                                    borderColor: 'var(--accelerant-blue)',
+                                    backgroundColor: 'white',
+                                    color: 'var(--slate-900)',
+                                  }}
+                                />
+                              ) : (
+                                <span>{formatValue(value)}</span>
+                              )}
+                              {citations[key] && documentText && !isEditing && (
                                 <button
                                   onClick={() => openCitation(key)}
                                   className="shrink-0 p-1 rounded transition-colors hover:bg-blue-50"

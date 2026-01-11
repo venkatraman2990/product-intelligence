@@ -61,6 +61,10 @@ The JSON format should be:
    - product_name: Marketing name of the product/program
    - product_description: Brief description of what the product covers
    - effective_date: Guidelines effective date (YYYY-MM-DD format)
+   - expiration_date: Contract/guidelines expiration date (YYYY-MM-DD format)
+   - accelerant_agency: Accelerant agency name (if mentioned)
+   - carrier: Carrier/insurance company name
+   - insurer_branch: Insurer branch (if mentioned)
 
 2. **Territory & Eligibility**:
    - permitted_states: List of US states where coverage is available (use 2-letter codes)
@@ -90,6 +94,9 @@ The JSON format should be:
    - max_revenue_per_insured: Maximum revenue/receipts per insured (number)
    - max_tiv_per_insured: Maximum Total Insured Value per insured (number)
    - max_locations_per_insured: Maximum number of locations per insured (number)
+   - commission_rate: Commission rate percentage (e.g., "15%", "10-15%")
+   - premium_cap_basis: Basis for premium cap - UW year or calendar year
+   - minimum_earned_premium: Minimum earned premium (MEP) amount or percentage
 
 6. **Underwriting Requirements**:
    - eligibility_rules: List of eligibility requirements/rules
@@ -110,6 +117,8 @@ The JSON format should be:
    - rating_basis: Rating basis (e.g., revenue, payroll, square footage)
    - max_policy_period: Maximum policy period
    - cancellation_provisions: Policy cancellation provisions
+   - underwriting_year_start: Underwriting year start date (YYYY-MM-DD or month/day)
+   - underwriting_year_end: Underwriting year end date (YYYY-MM-DD or month/day)
 
 Return ONLY valid JSON. Use null for fields not found in the document. For lists, return empty array [] if no items found.
 The "citations" object should contain the exact text snippets from the document for each extracted field. Keep citations concise (under 200 characters) but include enough context to locate the source."""

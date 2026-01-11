@@ -513,6 +513,11 @@ export default function ContractDetailPage() {
                       notes={extraction.extraction_notes}
                       documentText={contract.extracted_text || ''}
                       contractId={id}
+                      extractionId={extraction.id}
+                      editable={true}
+                      onDataUpdate={() => {
+                        queryClient.invalidateQueries({ queryKey: ['extractions', id] });
+                      }}
                     />
                   </div>
                 )}

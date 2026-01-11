@@ -23,11 +23,24 @@ class Metadata(BaseModel):
     effective_date: Optional[date] = Field(
         None, description="Guidelines effective date"
     )
+    expiration_date: Optional[date] = Field(
+        None, description="Contract/guidelines expiration date"
+    )
     document_source: Optional[str] = Field(
         None, description="Source document path"
     )
     extraction_timestamp: Optional[str] = Field(
         None, description="When extraction was performed"
+    )
+    # Counterparty information
+    accelerant_agency: Optional[str] = Field(
+        None, description="Accelerant agency name"
+    )
+    carrier: Optional[str] = Field(
+        None, description="Carrier/insurance company name"
+    )
+    insurer_branch: Optional[str] = Field(
+        None, description="Insurer branch"
     )
 
 
@@ -121,6 +134,15 @@ class PremiumRequirements(BaseModel):
     max_locations_per_insured: Optional[int] = Field(
         None, description="Maximum number of locations per insured"
     )
+    commission_rate: Optional[str] = Field(
+        None, description="Commission rate percentage"
+    )
+    premium_cap_basis: Optional[str] = Field(
+        None, description="Basis for premium cap - UW year or calendar year"
+    )
+    minimum_earned_premium: Optional[str] = Field(
+        None, description="Minimum earned premium (MEP)"
+    )
 
 
 class UnderwritingRequirements(BaseModel):
@@ -183,6 +205,12 @@ class PolicyTerms(BaseModel):
     cancellation_provisions: Optional[str] = Field(
         None, description="Policy cancellation provisions"
     )
+    underwriting_year_start: Optional[str] = Field(
+        None, description="Underwriting year start date"
+    )
+    underwriting_year_end: Optional[str] = Field(
+        None, description="Underwriting year end date"
+    )
 
 
 class ContractData(BaseModel):
@@ -241,8 +269,16 @@ class ContractData(BaseModel):
             self.metadata.effective_date.isoformat()
             if self.metadata.effective_date else None
         )
+        flat["expiration_date"] = (
+            self.metadata.expiration_date.isoformat()
+            if self.metadata.expiration_date else None
+        )
         flat["document_source"] = self.metadata.document_source
         flat["extraction_timestamp"] = self.metadata.extraction_timestamp
+        # Counterparty fields
+        flat["accelerant_agency"] = self.metadata.accelerant_agency
+        flat["carrier"] = self.metadata.carrier
+        flat["insurer_branch"] = self.metadata.insurer_branch
 
         # Territory fields
         flat["permitted_states"] = (
@@ -299,6 +335,9 @@ class ContractData(BaseModel):
         flat["max_revenue_per_insured"] = self.premium_requirements.max_revenue_per_insured
         flat["max_tiv_per_insured"] = self.premium_requirements.max_tiv_per_insured
         flat["max_locations_per_insured"] = self.premium_requirements.max_locations_per_insured
+        flat["commission_rate"] = self.premium_requirements.commission_rate
+        flat["premium_cap_basis"] = self.premium_requirements.premium_cap_basis
+        flat["minimum_earned_premium"] = self.premium_requirements.minimum_earned_premium
 
         # Underwriting Requirements fields
         flat["eligibility_rules"] = (
@@ -334,6 +373,8 @@ class ContractData(BaseModel):
         flat["rating_basis"] = self.policy_terms.rating_basis
         flat["max_policy_period"] = self.policy_terms.max_policy_period
         flat["cancellation_provisions"] = self.policy_terms.cancellation_provisions
+        flat["underwriting_year_start"] = self.policy_terms.underwriting_year_start
+        flat["underwriting_year_end"] = self.policy_terms.underwriting_year_end
 
         # Notes
         flat["extraction_notes"] = (
@@ -355,8 +396,13 @@ class ContractData(BaseModel):
             "product_name",
             "product_description",
             "effective_date",
+            "expiration_date",
             "document_source",
             "extraction_timestamp",
+            # Counterparties
+            "accelerant_agency",
+            "carrier",
+            "insurer_branch",
             # Territory
             "permitted_states",
             "excluded_states",
@@ -382,6 +428,9 @@ class ContractData(BaseModel):
             "max_revenue_per_insured",
             "max_tiv_per_insured",
             "max_locations_per_insured",
+            "commission_rate",
+            "premium_cap_basis",
+            "minimum_earned_premium",
             # Underwriting Requirements
             "eligibility_rules",
             "years_in_business_requirement",
@@ -399,6 +448,8 @@ class ContractData(BaseModel):
             "rating_basis",
             "max_policy_period",
             "cancellation_provisions",
+            "underwriting_year_start",
+            "underwriting_year_end",
             # Notes
             "extraction_notes",
         ]

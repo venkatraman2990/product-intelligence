@@ -6,6 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from backend.api.deps import get_db
 from backend.models.contract import Contract
@@ -274,13 +275,19 @@ async def update_extraction(
             detail="Can only update completed extractions"
         )
 
-    # Merge updates
-    current_data = extraction.extracted_data or {}
+    # Merge updates (explicitly flag as modified for SQLAlchemy)
+    current_data = dict(extraction.extracted_data or {})
     current_data.update(updates.extracted_data)
     extraction.extracted_data = current_data
+    flag_modified(extraction, "extracted_data")  # Force SQLAlchemy to detect change
     extraction.updated_at = datetime.utcnow()
 
+    # Explicit flush then commit to ensure data is written
+    db.flush()
     db.commit()
+
+    # Clear session cache and refresh
+    db.expire_all()
     db.refresh(extraction)
 
     return ExtractionResult(
